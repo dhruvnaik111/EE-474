@@ -15,29 +15,28 @@
 // ==================== Global Variables ====================
 unsigned long startTime, endTime, elapsedTime, totalTime;
 int i;
-
 // ==================== Functions ====================
 void setup() {
   Serial.begin(9600);
   delay(5000);
-  // Set a pin as GPIO
-  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_PIN], PIN_FUNC_GPIO);
+  // ================> TODO:
   // Set a pin as output
-  *((volatile uint32_t *)GPIO_ENABLE_REG) |= (1 << GPIO_PIN);
+  pinMode(GPIO_PIN, OUTPUT); //LED1
   i = 0;
 }
 void loop() {
+  // ================> TODO:
   // For 1000 repetitions:
   while(i < 1000) {
     //		Measure time to:
     startTime = micros();
-    //  - Turn pin's output to HIGH
-    *((volatile uint32_t *)GPIO_OUT_REG) |= (1 << GPIO_PIN);
+    //        		- Turn pin's output to HIGH
+    digitalWrite(GPIO_PIN, HIGH);
     endTime = micros();
     elapsedTime = endTime - startTime;
     totalTime += elapsedTime;
-    //   - Turn pin's output to LOW
-    *((volatile uint32_t *)GPIO_OUT_REG) &= ~(1 << GPIO_PIN);
+    //        		- Turn pin's output to LOW
+    digitalWrite(GPIO_PIN, LOW);
     // 1 second delay
     delay(1000);
     i++;
