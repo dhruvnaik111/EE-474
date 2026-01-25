@@ -27,7 +27,7 @@ void setup() {
 void loop() {
   // ================> TODO:
   // For 1000 repetitions:
-  while(i < 1000) {
+  if(i < 1000) {
     //		Measure time to:
     startTime = micros();
     //        		- Turn pin's output to HIGH
@@ -37,11 +37,14 @@ void loop() {
     totalTime += elapsedTime;
     //        		- Turn pin's output to LOW
     digitalWrite(GPIO_PIN, LOW);
+
+    i++;
+  } else {
     // 1 second delay
     delay(1000);
-    i++;
+    // Print out total time to the serial monitor
+    Serial.println(totalTime);
   }
   
-  // Print out total time to the serial monitor
-   Serial.println(totalTime);
+
 }

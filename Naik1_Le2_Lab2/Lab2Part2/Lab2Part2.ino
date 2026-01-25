@@ -4,15 +4,25 @@
 // Description: Directly interact with the ESP32's timer registers to control an LED
 
 // ==================== Includes ====================
+#include "driver/gpio.h"
+#include "soc/io_mux_reg.h"
+#include "soc/gpio_reg.h"
+#include "soc/gpio_periph.h"
 #include "soc/timer_group_reg.h"
 
 // ==================== Macros ====================
 #define GPIO_PIN 5
+bool state;
+bool fired = false;
 
 void setup() {
-  Serial.begin(9500);
-
-  pinMode(GPIO_PIN, OUTPUT);
+  Serial.begin(9600);
+  Serial.println("Start Lab2Part2.ino");
+  delay(1000);
+  // Set a pin as GPIO
+  PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_PIN], PIN_FUNC_GPIO);
+  // Set a pin as output
+  *((volatile uint32_t *)GPIO_ENABLE_REG) |= (1 << GPIO_PIN);
     
   *((volatile uint32_t *)TIMG_T0CONFIG_REG(0)) &= ~(0xFFFF << 13); //Clear divider bits
     
@@ -22,9 +32,7 @@ void setup() {
 
   *((volatile uint32_t *)TIMG_T0CONFIG_REG(0)) |= (1U << 31); //Start the timer
 
-  *((volatile uint32_t *)TIMG_T0LOADLO_REG(0)) &= 0x00000000; //Reset the timer to this value (0)
-
-  digitalWrite(GPIO_PIN, HIGH); //Start LED as on
+  state = true;
 }
 
 void loop() {
@@ -35,9 +43,27 @@ void loop() {
 
   //Serial.println(currentTime);
 
-    if (currentTime >= 500000) { //If its been 0.5 seonds
-        digitalWrite(GPIO_PIN, !digitalRead(GPIO_PIN)); //toggle LED
-        *((volatile uint32_t *)TIMG_T0LOAD_REG(0)) = 1; //Reset the timer
-        //Serial.println("Restart");
+    if (currentTime >= 1000000 && !fired) { //If its been 1 second
+        fired = true;
+
+        if (state){ //toggle led based on current state
+          *((volatile uint32_t *)GPIO_OUT_REG) |= (1 << GPIO_PIN);
+          state = false;
+        } else {
+          *((volatile uint32_t *)GPIO_OUT_REG) &= ~(1 << GPIO_PIN);
+          state = true;
+        }
+
+        *((volatile uint32_t *)TIMG_T0LOADLO_REG(0)) &= 0x00000000;
+        *((volatile uint32_t *)TIMG_T0LOADHI_REG(0)) &= 0x00000000;
+        *((volatile uint32_t *)TIMG_T0LOAD_REG(0)) |= 0xFFFFFFFF; // load 0 into the timer register
+
+        //Serial.println(state);
+        //Serial.println("Restart timer");
     }
+
+    if (currentTime < 1000) {
+      fired = false;  // reset flag
+    }
+    
 }
