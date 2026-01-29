@@ -1,7 +1,7 @@
-// Filename: icte5.ino
+// Filename: icte5part2.ino
 // Authors: Dhruv Naik, Ethan Le
 // Date: 01/29/2026
-// Description: Implement a round-robin scheduler on the ESP32-S3 that will run multiple tasks using function pointers.
+// Description: Implement a round-robin scheduler on the ESP32-S3 that will run multiple tasks using function pointers and structs.
 
 // ==================== Includes ====================
 #include <stddef.h>
