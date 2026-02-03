@@ -9,10 +9,10 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+
 // ==================== Macros ====================
 #define NTASKS 5
 #define LED1_PIN 4
-#define LED2_PIN 5
 #define BUZZER_PIN 6
 
 typedef struct TCBstruct {
@@ -33,7 +33,7 @@ typedef struct TCBstruct {
 
 // ==================== Global Variables ====================
 TCBstruct TaskList[NTASKS];
-unsigned int t_curr = 0; // current task index for round-robin
+unsigned int t_curr = 0; // current task index
 
 // ==================== Function Prototypes ====================
 void LEDBlinkerTask(void *p);
@@ -51,14 +51,18 @@ void task_delay(int d);
 LiquidCrystal_I2C lcd(0x27, 16, 2); // Initialize the LCD
 
 void setup() {
-    pinMode(LED1_PIN, OUTPUT); //LEDBlinker
-    pinMode(LED2_PIN, OUTPUT); //LEDMusicPlayer
+    // Initialize LED
+    pinMode(LED1_PIN, OUTPUT);
 
+    // Initialize Serial
     Serial.begin(9600);
+
+    // Initialize LCD
     Wire.begin(8,9);
     lcd.init();
     delay(2);
 
+    // Initialize PWM for Buzzer
     ledcAttach(BUZZER_PIN, 1000, 8); //sets pin as PWM
 
     Serial.println("Start of Lab3Part2");
@@ -128,78 +132,68 @@ void executeTask(void (*taskFunction)(void *p), void *arg) {
 // Name: scheduler
 // Description: Priority based non-preemptive scheduler using Task Control Blocks
 void scheduler() {
-  int selected = -1;
-  int highest_priority = 1000;
-  bool finished = true;
+    int selected = -1;
+    bool taskInProgress = false;
 
-  // Iterate through all tasks
-  for(int i = 0; i < NTASKS - 1; i++) { // NTASKS - 1 because last entry is NULL
-      if(TaskList[i].ftpr == NULL) break; // End of task list
-      
-      if (!TaskList[i].completed)
-        finished = false; //used to know when to reset priority status
-
-      // Update waiting tasks
-      if (TaskList[i].state == STATE_WAITING) {
-          if (TaskList[i].delay > 0)
-              TaskList[i].delay--;
-
-          if (TaskList[i].delay == 0)
-              TaskList[i].state = STATE_READY;
-      }
-
-      // Select highest-priority READY task
-      if (TaskList[i].state == STATE_READY &&
-          !TaskList[i].completed &&
-          TaskList[i].delay == 0 &&
-          TaskList[i].priority < highest_priority) {
-
-          highest_priority = TaskList[i].priority;
-          selected = i;
-      }
-  }
-
-  // Run highest-priority task
-  if (selected != -1) {
-      t_curr = selected;
-      TaskList[selected].state = STATE_RUNNING;
-      executeTask(TaskList[selected].ftpr, TaskList[selected].arg_ptr);
-
-      // If task did NOT block or halt, return to READY
-      if (TaskList[selected].state == STATE_RUNNING) {
-          TaskList[selected].state = STATE_READY;
-      }
-
-      // If task halted itself, mark completed and print
-      if (TaskList[selected].state == STATE_INACTIVE &&
-          !TaskList[selected].completed) {
-
-          TaskList[selected].completed = true;
-
-          Serial.print(TaskList[selected].name);
-          Serial.print(": ");
-          Serial.println(TaskList[selected].priority);
-      }
-  }
-
-
-  // If all tasks finished, reset and rotate priority
-  if (finished) {
-      for (int i = 0; i < NTASKS - 1; i++) {
-          TaskList[i].completed = false;
-          TaskList[i].state = STATE_READY;
-          TaskList[i].priority = TaskList[i].priority % 4 + 1;
-      }
-      Serial.println("---- Priority Rotated ----");
-  }
-
-
-  for (int i = 0; i < NTASKS - 1; i++) {
-    if (!TaskList[i].completed) {
-        finished = false;
-        break;
+    // Update waiting timers for all tasks
+    for (int i = 0; i < NTASKS - 1; i++) {
+        if (TaskList[i].ftpr != NULL && TaskList[i].state == STATE_WAITING) {
+            if (TaskList[i].delay > 0) TaskList[i].delay--;
+            if (TaskList[i].delay == 0) TaskList[i].state = STATE_READY;
+        }
     }
-  }
+
+    // Loop through priority levels 1 through 4
+    for (int p = 1; p <= 4; p++) {
+      // Check each task for the current priority level
+        for (int i = 0; i < NTASKS - 1; i++) {
+            // Find the task matching the current priority level we are checking
+            if (TaskList[i].ftpr != NULL && TaskList[i].priority == p && !TaskList[i].completed) {
+                
+                taskInProgress = true; // An incomplete task exists at this priority
+
+                if (TaskList[i].state == STATE_READY) {
+                    selected = i; // This is the highest priority task ready to run
+                } 
+                
+                // Break out of both loops to execute the task
+                p = 5; // Breaks the outer loop
+                break; // Breaks the inner loop
+            }
+        }
+    }
+
+    // Task Execution
+    if (selected != -1) {
+        t_curr = selected;
+        TaskList[selected].state = STATE_RUNNING;
+        executeTask(TaskList[selected].ftpr, TaskList[selected].arg_ptr);
+
+        // Return to READY if the task didn't halt itself
+        if (TaskList[selected].state == STATE_RUNNING) {
+            TaskList[selected].state = STATE_READY;
+        }
+
+        // Handle task completion
+        if (TaskList[selected].state == STATE_INACTIVE) {
+            TaskList[selected].completed = true;
+            Serial.print(TaskList[selected].name);
+            Serial.print(": ");
+            Serial.println(TaskList[selected].priority);
+        }
+    }
+
+    // Change priorities once all tasks finish
+    if (!taskInProgress) {
+        //Serial.println("Priority Rotated");
+        for (int i = 0; i < NTASKS - 1; i++) {
+            if (TaskList[i].ftpr == NULL) break;
+            TaskList[i].completed = false;
+            TaskList[i].state = STATE_READY;
+            TaskList[i].delay = 0;
+            TaskList[i].priority = (TaskList[i].priority % 4) + 1;
+        }
+    }
 }
 
 // Name: halt_me
