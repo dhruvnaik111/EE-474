@@ -1,7 +1,7 @@
 // Filename: Lab3Part1.ino
 // Authors: Dhruv Naik, Ethan Le
 // Date: 02/07/2026
-// Description: 
+// Description: Display a message on a LCD device entered through the Serial Monitor.
 
 // ==================== Includes ====================
 #include <Wire.h>
