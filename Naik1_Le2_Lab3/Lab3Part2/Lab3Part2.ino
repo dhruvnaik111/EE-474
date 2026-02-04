@@ -61,6 +61,8 @@ void setup() {
     Wire.begin(8,9);
     lcd.init();
     delay(2);
+    lcd.backlight();
+    lcd.clear();
 
     // Initialize PWM for Buzzer
     ledcAttach(BUZZER_PIN, 1000, 8); //sets pin as PWM
@@ -225,7 +227,7 @@ void LEDBlinkerTask(void *p) {
 
     if (togglecount >= 16) {
       togglecount = 0;
-      halt_me(); // Stop after 8 on/off cycles
+      halt_me(); // Stop after 8 on off cycles
       return;
     }
 
