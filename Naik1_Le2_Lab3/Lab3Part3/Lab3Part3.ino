@@ -48,12 +48,16 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 LiquidCrystal_I2C lcd(0x27, 16, 2); // Initialize the LCD
 
 // ==============> TODO: Write your timer ISR here.
+// Name: timerInterrupt
+// Description: ISR for timer interrupt. Sets a flag to indicate the timer fired.
 void IRAM_ATTR timerInterrupt() {
   // Minimal ISR: set a flag for the main loop to handle the counting
   timerFired = true;
 } 
 
 // ==============> TODO: Create an ISR function to handle button press here.
+// Name: buttonInterrupt
+// Description: ISR for button press. Sets a flag to indicate the button was pressed.
 void IRAM_ATTR buttonInterrupt() {
   // Set button pressed flag only (keep ISR minimal)
   buttonPressed = true;
