@@ -32,41 +32,47 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 // Description: Blink an LED and update remaining time for this task
 void ledTask(void *arg) {
    while (1) {
-      // 1. Do the work ONCE per period
-      digitalWrite(LED_PIN, !digitalRead(LED_PIN));
-
-      // 2. Countdown the remaining time in chunks (Allows scheduler to preempt)
-      while (remainingLedTime > 0) {
-         vTaskDelay(250 / portTICK_PERIOD_MS); 
-         remainingLedTime -= 250 / portTICK_PERIOD_MS; 
-         vTaskSuspend(NULL); 
+      //Check if time is up for this task to run
+      if(remainingLedTime == 0) {
+         remainingLedTime = ledTaskExecutionTime;
+         Serial.println("LED Blinking...");
+         digitalWrite(LED_PIN, !digitalRead(LED_PIN));
       }
-
-      // 3. Reset time for the next cycle
-      remainingLedTime = ledTaskExecutionTime;
+      
+      vTaskDelay(250 / portTICK_PERIOD_MS); // Delay for 250ms
+      remainingLedTime -= 250 / portTICK_PERIOD_MS; // Subtract the delay from remaining time
+      vTaskSuspend(NULL); // Suspend itself until the scheduler resumes it again
    }
 }
 
 // Name: counterTask
 // Description: Print out an incrementing counter to your LCD, and update remaining time for this task
 void counterTask(void *arg) {
-   static int counter = 0;
-   while (1) {
-      // 1. Do the work ONCE per period
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Count: ");
-      lcd.print(counter++);
-
-      // 2. Countdown the remaining time in chunks (Allows scheduler to preempt)
-      while (remainingCounterTime > 0) {
-         vTaskDelay(100 / portTICK_PERIOD_MS); 
-         remainingCounterTime -= 100 / portTICK_PERIOD_MS; 
-         vTaskSuspend(NULL);
+   static int counter = 1; // Starting at 1 based on your instructor's output
+   
+   while(1){
+      //Check if time is up for this task to run
+      if (remainingCounterTime == 0) {
+         remainingCounterTime = counterTaskExecutionTime;
+         
+         Serial.print("LCD Count: ");
+         Serial.println(counter);
+         
+         lcd.clear();
+         lcd.setCursor(0, 0);
+         lcd.print("Count: ");
+         lcd.print(counter);
+         
+         // Increment and check for reset
+         counter++;
+         if (counter > 20) {
+            counter = 0; // Restart at 0 after reaching 20
+         }
       }
-
-      // 3. Reset time for the next cycle (Do NOT reset the 'counter' variable here!)
-      remainingCounterTime = counterTaskExecutionTime;
+      
+      vTaskDelay(100 / portTICK_PERIOD_MS); // Delay for 100ms
+      remainingCounterTime -= 100 / portTICK_PERIOD_MS;  // Subtract the delay from remaining time
+      vTaskSuspend(NULL); // Suspend itself until the scheduler resumes it again
    }
 }
 
@@ -74,25 +80,23 @@ void counterTask(void *arg) {
 // Description: Print out the alphabet to Serial, and update remaining time for this task
 void alphabetTask(void *arg) {
    char letter = 'A'; 
-
    while(1) {
-      // 1. Do the work ONCE per period
-      Serial.print(letter++);
-      Serial.print(" ");
+      //Check if time is up for this task to run
+      if (remainingAlphabetTime == 0) {
+         remainingAlphabetTime = alphabetTaskExecutionTime;
+         
+         Serial.print("Alphabet: ");
+         Serial.println(letter);
+         
+         letter++;
+         if (letter > 'Z') {
+            letter = 'A';
+         }
+      }
       
-      if (letter > 'Z') {
-         letter = 'A';
-      }
-
-      // 2. Countdown the remaining time in chunks (Allows scheduler to preempt)
-      while (remainingAlphabetTime > 0) {
-         vTaskDelay(500 / portTICK_PERIOD_MS);
-         remainingAlphabetTime -= 500 / portTICK_PERIOD_MS;
-         vTaskSuspend(NULL);
-      }
-
-      // 3. Reset time for the next cycle
-      remainingAlphabetTime = alphabetTaskExecutionTime;
+      vTaskDelay(500 / portTICK_PERIOD_MS); // Delay for 500ms
+      remainingAlphabetTime -= 500 / portTICK_PERIOD_MS; // Subtract the delay from remaining time
+      vTaskSuspend(NULL); // Suspend itself until the scheduler resumes it again
    }
 }
 
@@ -107,25 +111,25 @@ void scheduleTasks(void *arg) {
       TickType_t shortestTime = 0xFFFFFFFF; // Start with the maximum possible value
       TaskHandle_t taskToResume = NULL;
 
-      // 1. Check if LED Task is waiting (suspended) AND has the shortest time so far
+      // Check if LED Task is waiting (suspended) AND has the shortest time so far
       if (eTaskGetState(ledTaskHandle) == eSuspended && remainingLedTime <= shortestTime) {
          shortestTime = remainingLedTime;
          taskToResume = ledTaskHandle;
       }
 
-      // 2. Check if Counter Task is waiting (suspended) AND has the shortest time so far
+      // Check if Counter Task is waiting (suspended) AND has the shortest time so far
       if (eTaskGetState(counterTaskHandle) == eSuspended && remainingCounterTime <= shortestTime) {
          shortestTime = remainingCounterTime;
          taskToResume = counterTaskHandle;
       }
 
-      // 3. Check if Alphabet Task is waiting (suspended) AND has the shortest time so far
+      // Check if Alphabet Task is waiting (suspended) AND has the shortest time so far
       if (eTaskGetState(alphabetTaskHandle) == eSuspended && remainingAlphabetTime <= shortestTime) {
          shortestTime = remainingAlphabetTime;
          taskToResume = alphabetTaskHandle;
       }
 
-      // 4. If we found a suspended task, resume the winner!
+      // If we found a suspended task resume it
       if (taskToResume != NULL) {
          vTaskResume(taskToResume);
       }
