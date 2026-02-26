@@ -30,9 +30,17 @@ typedef struct {
 volatile double smaValue = 0.0;
 volatile double currentLightLevel = 0.0;
 
-//Initialize LCD
+// ==================== Function Prototypes ====================
+void lightDetectorTask(void *arg);
+void lcdTask(void *arg);
+void anomalyAlarmTask(void *arg);
+void primeCalculationTask(void *arg);
+bool isPrime(int num);
+
+// ==================== Hardware Objects ====================
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
+// ==================== Function Implementations ====================
 void setup() {
    //         1. Initialize pins, serial, LCD, etc
    Serial.begin(9600);
@@ -47,8 +55,8 @@ void setup() {
    //         2. Create binary semaphore for synchronization of light level data.
    xBinarySemaphore = xSemaphoreCreateBinary();
    if (xBinarySemaphore != NULL) {
-      xSemaphoreGive(xBinarySemaphore);
       // Initialize the semaphore as available
+      xSemaphoreGive(xBinarySemaphore);
 
       //         3. Create Tasks
       //          - Create the `Light Detector Task` and assign it to Core 0.
@@ -88,12 +96,13 @@ void lightDetectorTask(void *arg) {
       if(xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdTRUE) {
          //           - Calculate the simple moving average and update variables.
          smaValue = calculateSMA(&sma, currentLightLevel);
+
          //           - Give semaphore to signal data is ready.
          xSemaphoreGive(xBinarySemaphore);
       }
 
-      vTaskDelay(100 / portTICK_PERIOD_MS);
       // Delay for 0.1 seconds before next reading
+      vTaskDelay(100 / portTICK_PERIOD_MS);
    }
 }
 
@@ -151,8 +160,8 @@ void lcdTask(void *arg) {
          xSemaphoreGive(xBinarySemaphore);
       }
 
-      vTaskDelay(100 / portTICK_PERIOD_MS);
       // Delay for 0.1 seconds before checking again
+      vTaskDelay(100 / portTICK_PERIOD_MS);
    }
 }
 
@@ -183,9 +192,9 @@ void anomalyAlarmTask(void *arg) {
             vTaskDelay(2000 / portTICK_PERIOD_MS);
          }
       }
-
-      vTaskDelay(100 / portTICK_PERIOD_MS);
+      
       // Delay for 0.1 seconds before checking again
+      vTaskDelay(100 / portTICK_PERIOD_MS);
    }
 }
 
