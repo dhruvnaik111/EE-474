@@ -7,6 +7,7 @@
 #include <LiquidCrystal_I2C.h>
 
 // ==================== Global Variables ====================
+SemaphoreHandle_t xBinarySemaphore;
 TaskHandle_t lightDetectorTaskHandle;
 TaskHandle_t lcdTaskHandle;
 TaskHandle_t anomalyAlarmTaskHandle;
@@ -21,8 +22,10 @@ typedef struct {
 
 volatile double smaValue = 0.0;
 volatile double currentLightLevel = 0.0;
+
 // ==================== Macros ====================
 #define PHOTORESISTOR_PIN 1
+#define LED_PIN //TODO
 #define WINDOW_SIZE 5
 
 
@@ -38,20 +41,24 @@ setup() {
    delay(2);
    lcd.backlight();
    lcd.clear();
+   pinMode(PHOTORESISTOR_PIN, INPUT);
+   pinMode(LED_PIN, OUTPUT);
+
    //         2. Create binary semaphore for synchronization of light level data.
    xBinarySemaphore = xSemaphoreCreateBinary();
-   if(xBinarySemaphore != NULL){
+   if (xBinarySemaphore != NULL) {
+      xSemaphoreGive(xBinarySemaphore); // Initialize the semaphore as available
+
+      //         3. Create Tasks
+      //          - Create the `Light Detector Task` and assign it to Core 0.
       xTaskCreatePinnedToCore(lightDetectorTask, "lightDetectorTask", 1024, NULL, 1, &lightDetectorTaskHandle, 0);
+      //          - Create `LCD Task` and assign it to Core 0.
+      xTaskCreatePinnedToCore(lcdTask, "lcdTask", 1024, NULL, 1, &lcdTaskHandle, 0);
+      //          - Create `Anomaly Alarm Task` and assign it to Core 1.
+      xTaskCreatePinnedToCore(anomalyAlarmTask, "anomalyAlarmTask", 1024, NULL, 1, &anomalyAlarmTaskHandle, 1);
+      //          - Create `Prime Calculation Task` and assign it to Core 1.
+      xTaskCreatePinnedToCore(primeCalculationTask, "primeCalculationTask", 1024, NULL, 1, &primeCalculationTaskHandle, 1);
    }
-   //         3. Create Tasks
-   //          - Create the `Light Detector Task` and assign it to Core 0.
-   xTaskCreatePinnedToCore(lightDetectorTask, "lightDetectorTask", 1024, NULL, 1, &lightDetectorTaskHandle, 0);
-   //          - Create `LCD Task` and assign it to Core 0.
-   xTaskCreatePinnedToCore(lcdTask, "lcdTask", 1024, NULL, 1, &lcdTaskHandle, 0);
-   //          - Create `Anomaly Alarm Task` and assign it to Core 1.
-   xTaskCreatePinnedToCore(anomalyAlarmTask, "anomalyAlarmTask", 1024, NULL, 1, &anomalyAlarmTaskHandle, 1);
-   //          - Create `Prime Calculation Task` and assign it to Core 1.
-   xTaskCreatePinnedToCore(primeCalculationTask, "primeCalculationTask", 1024, NULL, 1, &primeCalculationTaskHandle, 1);
 }
 loop() {}
 
@@ -62,8 +69,12 @@ void lightDetectorTask(void *arg) {
    // ====================> TODO:
    //          1. Initialize Variables
    SimpleMovingAverage sma = { .sum = 0.0, .count = 0, .index = 0 };
+   for (int i = 0; i < WINDOW_SIZE; i++) {
+      sma.values[i] = 0.0;
+   }
    currentLightLevel = 0.0;
    smaValue = 0.0;
+
    //          2. Loop Continuously
    while (1) {
       //           - Read light level from the photoresistor.
@@ -76,6 +87,7 @@ void lightDetectorTask(void *arg) {
          xSemaphoreGive(xBinarySemaphore);
       }
 
+      vTaskDelay(100 / portTICK_PERIOD_MS); // Delay for 1 second before next reading
    }
 }
 
@@ -106,6 +118,7 @@ void lcdTask(void *arg) {
    //          1. Initialize Variables
    double oldSMA = 0.0;
    double oldLightLevel = 0.0;
+
    //           2. Loop Continuously
    while (1) {
       //            - Wait for semaphore.
@@ -126,6 +139,7 @@ void lcdTask(void *arg) {
          xSemaphoreGive(xBinarySemaphore);
       }
 
+      vTaskDelay(100 / portTICK_PERIOD_MS); // Delay for 0.1 seconds before checking again
    }
 }
 
@@ -143,9 +157,9 @@ void anomalyAlarmTask(void *arg) {
          if(smaValue > 3800 || smaValue < 300) {
             //             - If an anomaly is detected, flash a LED signal
             for(int i = 0; i < 3; i++) {
-               digitalWrite(LED_BUILTIN, HIGH);
-               vTaskDelay(2000 / portTICK_PERIOD_MS);
-               digitalWrite(LED_BUILTIN, LOW);
+               digitalWrite(LED_PIN, HIGH);
+               vTaskDelay(100 / portTICK_PERIOD_MS);
+               digitalWrite(LED_PIN, LOW);
                vTaskDelay(2000 / portTICK_PERIOD_MS);
             }
          }
@@ -153,6 +167,7 @@ void anomalyAlarmTask(void *arg) {
          xSemaphoreGive(xBinarySemaphore);
       }
 
+      vTaskDelay(100 / portTICK_PERIOD_MS); // Delay for 0.1 seconds before checking again
    }
 }
 
