@@ -1,0 +1,30 @@
+\doxysection{Simple\+Moving\+Average Struct Reference}
+\hypertarget{struct_simple_moving_average}{}\label{struct_simple_moving_average}\index{SimpleMovingAverage@{SimpleMovingAverage}}
+
+
+Structure to maintain simple moving average calculation state.  
+
+
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{struct_simple_moving_average_a7cbb06f89d47bd255ae63b9a19d1030f}\label{struct_simple_moving_average_a7cbb06f89d47bd255ae63b9a19d1030f} 
+double {\bfseries values} \+[WINDOW\+\_\+\+SIZE]\+
+\begin{DoxyCompactList}\small\item\em Buffer to store the last N light sensor values. \end{DoxyCompactList}\item 
+\Hypertarget{struct_simple_moving_average_ac217a8ca665cd14bb4147be066cabbdf}\label{struct_simple_moving_average_ac217a8ca665cd14bb4147be066cabbdf} 
+double {\bfseries sum}
+\begin{DoxyCompactList}\small\item\em Sum of all values currently in the buffer. \end{DoxyCompactList}\item 
+\Hypertarget{struct_simple_moving_average_aa6bcfc698a9b761632d194975e234230}\label{struct_simple_moving_average_aa6bcfc698a9b761632d194975e234230} 
+int {\bfseries count}
+\begin{DoxyCompactList}\small\item\em Count of values in the buffer (max is WINDOW\+\_\+\+SIZE). \end{DoxyCompactList}\item 
+\Hypertarget{struct_simple_moving_average_a3c9ae2689659c13b19eb4061b4f118f5}\label{struct_simple_moving_average_a3c9ae2689659c13b19eb4061b4f118f5} 
+int {\bfseries index}
+\begin{DoxyCompactList}\small\item\em Current index position in the circular buffer. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Structure to maintain simple moving average calculation state. 
+
+The documentation for this struct was generated from the following file:\+\begin{DoxyCompactItemize}
+\item 
+Lab4\+Part2/\+\doxymbox{\hyperlink{_lab4_part2_8ino}{Lab4\+Part2.\+ino}}\end{DoxyCompactItemize}
