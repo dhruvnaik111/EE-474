@@ -1,0 +1,188 @@
+\doxysection{Lab4\+Part2/\+\+Lab4\+Part2.ino File Reference}
+\hypertarget{_lab4_part2_8ino}{}\label{_lab4_part2_8ino}\index{Lab4Part2/Lab4Part2.ino@{Lab4Part2/Lab4Part2.ino}}
+
+
+Dual-\/\+Core Light Sensor and Anomaly Detection System.  
+
+
+{\ttfamily \+\#include $<$stddef.\+h$>$}\newline
+{\ttfamily \+\#include $<$Liquid\+Crystal\+\_\+\+I2\+C.\+h$>$}\newline
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \doxymbox{\hyperlink{struct_simple_moving_average}{Simple\+Moving\+Average}}
+\begin{DoxyCompactList}\small\item\em Structure to maintain simple moving average calculation state. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{_lab4_part2_8ino_a559501848139cc1aeeaed5e7446484ac}\label{_lab4_part2_8ino_a559501848139cc1aeeaed5e7446484ac} 
+\+\#define {\bfseries PHOTORESISTOR\+\_\+\+PIN}~1
+\item 
+\Hypertarget{_lab4_part2_8ino_ab4553be4db9860d940f81d7447173b2f}\label{_lab4_part2_8ino_ab4553be4db9860d940f81d7447173b2f} 
+\+\#define {\bfseries LED\+\_\+\+PIN}~2
+\item 
+\Hypertarget{_lab4_part2_8ino_ab3f68d59e815ea166f8c983bc6e85c5b}\label{_lab4_part2_8ino_ab3f68d59e815ea166f8c983bc6e85c5b} 
+\+\#define {\bfseries WINDOW\+\_\+\+SIZE}~5
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{_lab4_part2_8ino_ae084e1bc8ccb35ea289ba0ca4972ea6d}\label{_lab4_part2_8ino_ae084e1bc8ccb35ea289ba0ca4972ea6d} 
+Liquid\+Crystal\+\_\+\+I2C {\bfseries lcd} (0x27, 16, 2)
+\item 
+void \doxymbox{\hyperlink{_lab4_part2_8ino_ab8e13e31e625fec5c646fd7afd4b8c27}{light\+Detector\+Task}} (void \texorpdfstring{$\ast$}{*}arg)
+\begin{DoxyCompactList}\small\item\em Continuously read light levels and calculate SMA. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{_lab4_part2_8ino_abc0a5e2b9db7d26f855df2e334fd4bda}{lcd\+Task}} (void \texorpdfstring{$\ast$}{*}arg)
+\begin{DoxyCompactList}\small\item\em Update LCD display with current light level and SMA values. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{_lab4_part2_8ino_a929ff1f234b1daf57efaebb75793c4f7}{anomaly\+Alarm\+Task}} (void \texorpdfstring{$\ast$}{*}arg)
+\begin{DoxyCompactList}\small\item\em Monitor SMA values and trigger LED alarm on anomaly detection. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{_lab4_part2_8ino_a64c67870c768d4e93f85219a5e8eb3b1}{prime\+Calculation\+Task}} (void \texorpdfstring{$\ast$}{*}arg)
+\begin{DoxyCompactList}\small\item\em Calculate and print prime numbers to serial monitor. \end{DoxyCompactList}\item 
+bool \doxymbox{\hyperlink{_lab4_part2_8ino_ac2d541fc721d953b21bddf7f863d6a4b}{is\+Prime}} (int num)
+\begin{DoxyCompactList}\small\item\em Check if a number is prime. \end{DoxyCompactList}\item 
+\Hypertarget{_lab4_part2_8ino_a4fc01d736fe50cf5b977f755b675f11d}\label{_lab4_part2_8ino_a4fc01d736fe50cf5b977f755b675f11d} 
+void {\bfseries setup} ()
+\item 
+\Hypertarget{_lab4_part2_8ino_afe461d27b9c48d5921c00d521181f12f}\label{_lab4_part2_8ino_afe461d27b9c48d5921c00d521181f12f} 
+void {\bfseries loop} ()
+\item 
+double \doxymbox{\hyperlink{_lab4_part2_8ino_a9a0132472e13ece965a896aded508492}{calculate\+SMA}} (\doxymbox{\hyperlink{struct_simple_moving_average}{Simple\+Moving\+Average}} \texorpdfstring{$\ast$}{*}sma, double new\+Value)
+\begin{DoxyCompactList}\small\item\em Calculate the Simple Moving Average with a new value. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{_lab4_part2_8ino_ad1cdd51280ca8fc7a9217c3f71cd76e3}\label{_lab4_part2_8ino_ad1cdd51280ca8fc7a9217c3f71cd76e3} 
+volatile double {\bfseries sma\+Value} = 0.\+0
+\item 
+\Hypertarget{_lab4_part2_8ino_a495897de08b260f153c2d273f3ac2eeb}\label{_lab4_part2_8ino_a495897de08b260f153c2d273f3ac2eeb} 
+volatile double {\bfseries current\+Light\+Level} = 0.\+0
+\item 
+\Hypertarget{_lab4_part2_8ino_a9bd367f68ea1238f3311462683bd5968}\label{_lab4_part2_8ino_a9bd367f68ea1238f3311462683bd5968} 
+Semaphore\+Handle\+\_\+t {\bfseries x\+Binary\+Semaphore}
+\item 
+\Hypertarget{_lab4_part2_8ino_a1c8cfaef70356dc2c6ac13e18b425e12}\label{_lab4_part2_8ino_a1c8cfaef70356dc2c6ac13e18b425e12} 
+Task\+Handle\+\_\+t {\bfseries light\+Detector\+Task\+Handle}
+\item 
+\Hypertarget{_lab4_part2_8ino_a824a4cd8786288b0b2e200e3f8ee7960}\label{_lab4_part2_8ino_a824a4cd8786288b0b2e200e3f8ee7960} 
+Task\+Handle\+\_\+t {\bfseries lcd\+Task\+Handle}
+\item 
+\Hypertarget{_lab4_part2_8ino_aec833a076d090173961254185d1219c4}\label{_lab4_part2_8ino_aec833a076d090173961254185d1219c4} 
+Task\+Handle\+\_\+t {\bfseries anomaly\+Alarm\+Task\+Handle}
+\item 
+\Hypertarget{_lab4_part2_8ino_a46938cdd353354071bdae0924ebfdc6b}\label{_lab4_part2_8ino_a46938cdd353354071bdae0924ebfdc6b} 
+Task\+Handle\+\_\+t {\bfseries prime\+Calculation\+Task\+Handle}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Dual-\/\+Core Light Sensor and Anomaly Detection System. 
+
+\begin{DoxyAuthor}{Authors}
+Dhruv Naik, Ethan Le 
+\end{DoxyAuthor}
+\begin{DoxyDate}{Date}
+02/\+28/\+2026
+\end{DoxyDate}
+Implements a real-\/time system using Free\+RTOS that runs on both cores of an ESP32 to monitor light levels, detect anomalies, and perform calculations. 
+
+\label{doc-func-members}
+\Hypertarget{_lab4_part2_8ino_doc-func-members}
+\doxysubsection{Function Documentation}
+\Hypertarget{_lab4_part2_8ino_a929ff1f234b1daf57efaebb75793c4f7}\index{Lab4Part2.ino@{Lab4Part2.ino}!anomalyAlarmTask@{anomalyAlarmTask}}
+\index{anomalyAlarmTask@{anomalyAlarmTask}!Lab4Part2.ino@{Lab4Part2.ino}}
+\doxysubsubsection{\texorpdfstring{anomalyAlarmTask()}{anomalyAlarmTask()}}
+{\footnotesize\ttfamily \label{_lab4_part2_8ino_a929ff1f234b1daf57efaebb75793c4f7} 
+void anomaly\+Alarm\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{arg}{}\end{DoxyParamCaption})}
+
+
+
+Monitor SMA values and trigger LED alarm on anomaly detection. 
+
+Continuously monitors the SMA of light levels and flashes an LED signal if an anomaly is detected (SMA \texorpdfstring{$>$}{>} 3800 or SMA \texorpdfstring{$<$}{<} 300). Performs 3 flash cycles (100ms on, 2000ms off) per anomaly. Executes on Core 1. 
+\begin{DoxyParams}{Parameters}
+{\em arg} & Unused task parameter (pointer to void) \\
+\hline
+\end{DoxyParams}
+\Hypertarget{_lab4_part2_8ino_a9a0132472e13ece965a896aded508492}\index{Lab4Part2.ino@{Lab4Part2.ino}!calculateSMA@{calculateSMA}}
+\index{calculateSMA@{calculateSMA}!Lab4Part2.ino@{Lab4Part2.ino}}
+\doxysubsubsection{\texorpdfstring{calculateSMA()}{calculateSMA()}}
+{\footnotesize\ttfamily \label{_lab4_part2_8ino_a9a0132472e13ece965a896aded508492} 
+double calculate\+SMA (\begin{DoxyParamCaption}\item[{\doxymbox{\hyperlink{struct_simple_moving_average}{Simple\+Moving\+Average}} \texorpdfstring{$\ast$}{*}}]{sma}{, }\item[{double}]{new\+Value}{}\end{DoxyParamCaption})}
+
+
+
+Calculate the Simple Moving Average with a new value. 
+
+Updates the circular buffer with a new value, maintains the running sum, and returns the current average of all values in the buffer. 
+\begin{DoxyParams}{Parameters}
+{\em sma} & Pointer to the \doxylink{struct_simple_moving_average}{Simple\+Moving\+Average} structure to update \\
+\hline
+{\em new\+Value} & The new sensor reading to add to the SMA calculation \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+The current simple moving average value 
+\end{DoxyReturn}
+\Hypertarget{_lab4_part2_8ino_ac2d541fc721d953b21bddf7f863d6a4b}\index{Lab4Part2.ino@{Lab4Part2.ino}!isPrime@{isPrime}}
+\index{isPrime@{isPrime}!Lab4Part2.ino@{Lab4Part2.ino}}
+\doxysubsubsection{\texorpdfstring{isPrime()}{isPrime()}}
+{\footnotesize\ttfamily \label{_lab4_part2_8ino_ac2d541fc721d953b21bddf7f863d6a4b} 
+bool is\+Prime (\begin{DoxyParamCaption}\item[{int}]{num}{}\end{DoxyParamCaption})}
+
+
+
+Check if a number is prime. 
+
+Uses trial division method:\+ tests divisibility up to sqrt(num). 
+\begin{DoxyParams}{Parameters}
+{\em num} & The number to check for primality \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+true if num is prime, false otherwise 
+\end{DoxyReturn}
+\Hypertarget{_lab4_part2_8ino_abc0a5e2b9db7d26f855df2e334fd4bda}\index{Lab4Part2.ino@{Lab4Part2.ino}!lcdTask@{lcdTask}}
+\index{lcdTask@{lcdTask}!Lab4Part2.ino@{Lab4Part2.ino}}
+\doxysubsubsection{\texorpdfstring{lcdTask()}{lcdTask()}}
+{\footnotesize\ttfamily \label{_lab4_part2_8ino_abc0a5e2b9db7d26f855df2e334fd4bda} 
+void lcd\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{arg}{}\end{DoxyParamCaption})}
+
+
+
+Update LCD display with current light level and SMA values. 
+
+Waits for the binary semaphore, then updates the LCD display only when values have changed. Displays current light level on line 1 and SMA on line 2. Executes on Core 0 with 100ms polling interval. 
+\begin{DoxyParams}{Parameters}
+{\em arg} & Unused task parameter (pointer to void) \\
+\hline
+\end{DoxyParams}
+\Hypertarget{_lab4_part2_8ino_ab8e13e31e625fec5c646fd7afd4b8c27}\index{Lab4Part2.ino@{Lab4Part2.ino}!lightDetectorTask@{lightDetectorTask}}
+\index{lightDetectorTask@{lightDetectorTask}!Lab4Part2.ino@{Lab4Part2.ino}}
+\doxysubsubsection{\texorpdfstring{lightDetectorTask()}{lightDetectorTask()}}
+{\footnotesize\ttfamily \label{_lab4_part2_8ino_ab8e13e31e625fec5c646fd7afd4b8c27} 
+void light\+Detector\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{arg}{}\end{DoxyParamCaption})}
+
+
+
+Continuously read light levels and calculate SMA. 
+
+Reads analog values from the photoresistor, calculates a simple moving average (SMA), and uses a binary semaphore to signal when new data is ready. Executes on Core 0. Runs indefinitely with 100ms delay between readings. 
+\begin{DoxyParams}{Parameters}
+{\em arg} & Unused task parameter (pointer to void) \\
+\hline
+\end{DoxyParams}
+\Hypertarget{_lab4_part2_8ino_a64c67870c768d4e93f85219a5e8eb3b1}\index{Lab4Part2.ino@{Lab4Part2.ino}!primeCalculationTask@{primeCalculationTask}}
+\index{primeCalculationTask@{primeCalculationTask}!Lab4Part2.ino@{Lab4Part2.ino}}
+\doxysubsubsection{\texorpdfstring{primeCalculationTask()}{primeCalculationTask()}}
+{\footnotesize\ttfamily \label{_lab4_part2_8ino_a64c67870c768d4e93f85219a5e8eb3b1} 
+void prime\+Calculation\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{arg}{}\end{DoxyParamCaption})}
+
+
+
+Calculate and print prime numbers to serial monitor. 
+
+Iterates from 2 to 5000, checking each number for primality and printing prime numbers to the serial monitor. Executes on Core 1 and deletes itself after completion. Used to demonstrate dual-\/core task scheduling. 
+\begin{DoxyParams}{Parameters}
+{\em arg} & Unused task parameter (pointer to void) \\
+\hline
+\end{DoxyParams}

@@ -1,0 +1,144 @@
+\doxysection{Lab4\+Part1/\+\+Lab4\+Part1.ino File Reference}
+\hypertarget{_lab4_part1_8ino}{}\label{_lab4_part1_8ino}\index{Lab4Part1/Lab4Part1.ino@{Lab4Part1/Lab4Part1.ino}}
+
+
+Manage and schedule tasks with preemptive scheduling algorithms in Free\+RTOS.  
+
+
+{\ttfamily \+\#include $<$stddef.\+h$>$}\newline
+{\ttfamily \+\#include $<$Liquid\+Crystal\+\_\+\+I2\+C.\+h$>$}\newline
+\doxysubsubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{_lab4_part1_8ino_ab4553be4db9860d940f81d7447173b2f}\label{_lab4_part1_8ino_ab4553be4db9860d940f81d7447173b2f} 
+\+\#define {\bfseries LED\+\_\+\+PIN}~2
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{_lab4_part1_8ino_ae084e1bc8ccb35ea289ba0ca4972ea6d}\label{_lab4_part1_8ino_ae084e1bc8ccb35ea289ba0ca4972ea6d} 
+Liquid\+Crystal\+\_\+\+I2C {\bfseries lcd} (0x27, 16, 2)
+\item 
+void \doxymbox{\hyperlink{_lab4_part1_8ino_aa3845dae865c47cfdfe37652a373aa2a}{led\+Task}} (void \texorpdfstring{$\ast$}{*}arg)
+\begin{DoxyCompactList}\small\item\em Toggle an LED when its execution period expires. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{_lab4_part1_8ino_a2b4338007e5668fd56dfe3f333fc26d2}{counter\+Task}} (void \texorpdfstring{$\ast$}{*}arg)
+\begin{DoxyCompactList}\small\item\em Display an incrementing counter on the LCD every 2 seconds. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{_lab4_part1_8ino_a4d773b0b523ff172ed84864533f5b4eb}{alphabet\+Task}} (void \texorpdfstring{$\ast$}{*}arg)
+\begin{DoxyCompactList}\small\item\em Print letters A through Z to Serial every 13 seconds. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{_lab4_part1_8ino_a4ea4585de20507653ce66667bb133d6f}{schedule\+Tasks}} (void \texorpdfstring{$\ast$}{*}arg)
+\begin{DoxyCompactList}\small\item\em Implement Shortest Remaining Time First (SRTF) scheduling algorithm. \end{DoxyCompactList}\item 
+\Hypertarget{_lab4_part1_8ino_a4fc01d736fe50cf5b977f755b675f11d}\label{_lab4_part1_8ino_a4fc01d736fe50cf5b977f755b675f11d} 
+void {\bfseries setup} ()
+\item 
+\Hypertarget{_lab4_part1_8ino_afe461d27b9c48d5921c00d521181f12f}\label{_lab4_part1_8ino_afe461d27b9c48d5921c00d521181f12f} 
+void {\bfseries loop} ()
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{_lab4_part1_8ino_a75818cb094cf69f33e62ddf759c8daab}\label{_lab4_part1_8ino_a75818cb094cf69f33e62ddf759c8daab} 
+const Tick\+Type\+\_\+t {\bfseries led\+Task\+Execution\+Time} = 500 /\+ port\+TICK\+\_\+\+PERIOD\+\_\+\+MS
+\item 
+\Hypertarget{_lab4_part1_8ino_a2e782932f0bf2f1fa35ac3bfa9a8b5cc}\label{_lab4_part1_8ino_a2e782932f0bf2f1fa35ac3bfa9a8b5cc} 
+const Tick\+Type\+\_\+t {\bfseries counter\+Task\+Execution\+Time} = 2000 /\+ port\+TICK\+\_\+\+PERIOD\+\_\+\+MS
+\item 
+\Hypertarget{_lab4_part1_8ino_ae03e873e30fb2f78c6292fc4e2614e54}\label{_lab4_part1_8ino_ae03e873e30fb2f78c6292fc4e2614e54} 
+const Tick\+Type\+\_\+t {\bfseries alphabet\+Task\+Execution\+Time} = 13000 /\+ port\+TICK\+\_\+\+PERIOD\+\_\+\+MS
+\item 
+\Hypertarget{_lab4_part1_8ino_a984bdb71413c08cf09f7d11793877dfa}\label{_lab4_part1_8ino_a984bdb71413c08cf09f7d11793877dfa} 
+volatile Tick\+Type\+\_\+t {\bfseries remaining\+Led\+Time} = led\+Task\+Execution\+Time
+\item 
+\Hypertarget{_lab4_part1_8ino_a562419e3d9d311efcc74859e5b3adf44}\label{_lab4_part1_8ino_a562419e3d9d311efcc74859e5b3adf44} 
+volatile Tick\+Type\+\_\+t {\bfseries remaining\+Counter\+Time} = counter\+Task\+Execution\+Time
+\item 
+\Hypertarget{_lab4_part1_8ino_a1fb03c229171c45dee3187903d2cbcf3}\label{_lab4_part1_8ino_a1fb03c229171c45dee3187903d2cbcf3} 
+volatile Tick\+Type\+\_\+t {\bfseries remaining\+Alphabet\+Time} = alphabet\+Task\+Execution\+Time
+\item 
+\Hypertarget{_lab4_part1_8ino_a9227c54721d0ff94543483e0faece60e}\label{_lab4_part1_8ino_a9227c54721d0ff94543483e0faece60e} 
+Task\+Handle\+\_\+t {\bfseries led\+Task\+Handle}
+\item 
+\Hypertarget{_lab4_part1_8ino_a2294463b35775d51e1151a1c86a05f58}\label{_lab4_part1_8ino_a2294463b35775d51e1151a1c86a05f58} 
+Task\+Handle\+\_\+t {\bfseries counter\+Task\+Handle}
+\item 
+\Hypertarget{_lab4_part1_8ino_af4202b14fffd45682aa00a448a732502}\label{_lab4_part1_8ino_af4202b14fffd45682aa00a448a732502} 
+Task\+Handle\+\_\+t {\bfseries alphabet\+Task\+Handle}
+\item 
+\Hypertarget{_lab4_part1_8ino_ae2f50e80ace79e0d44044caba1e7182a}\label{_lab4_part1_8ino_ae2f50e80ace79e0d44044caba1e7182a} 
+Task\+Handle\+\_\+t {\bfseries scheduler\+Task\+Handle}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Manage and schedule tasks with preemptive scheduling algorithms in Free\+RTOS. 
+
+\begin{DoxyAuthor}{Authors}
+Dhruv Naik, Ethan Le 
+\end{DoxyAuthor}
+\begin{DoxyDate}{Date}
+02/\+28/\+2026
+\end{DoxyDate}
+Implements Shortest Remaining Time First (SRTF) scheduling to manage three concurrent tasks:\+ LED control, counter display, and alphabet printing. 
+
+\label{doc-func-members}
+\Hypertarget{_lab4_part1_8ino_doc-func-members}
+\doxysubsection{Function Documentation}
+\Hypertarget{_lab4_part1_8ino_a4d773b0b523ff172ed84864533f5b4eb}\index{Lab4Part1.ino@{Lab4Part1.ino}!alphabetTask@{alphabetTask}}
+\index{alphabetTask@{alphabetTask}!Lab4Part1.ino@{Lab4Part1.ino}}
+\doxysubsubsection{\texorpdfstring{alphabetTask()}{alphabetTask()}}
+{\footnotesize\ttfamily \label{_lab4_part1_8ino_a4d773b0b523ff172ed84864533f5b4eb} 
+void alphabet\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{arg}{}\end{DoxyParamCaption})}
+
+
+
+Print letters A through Z to Serial every 13 seconds. 
+
+Executes every 13 seconds to print the next letter in the alphabet sequence. After reaching \textquotesingle{}Z\textquotesingle{}, the sequence automatically restarts at \textquotesingle{}A\textquotesingle{}. Updates remaining execution time before suspending. 
+\begin{DoxyParams}{Parameters}
+{\em arg} & Unused task parameter (pointer to void) \\
+\hline
+\end{DoxyParams}
+\Hypertarget{_lab4_part1_8ino_a2b4338007e5668fd56dfe3f333fc26d2}\index{Lab4Part1.ino@{Lab4Part1.ino}!counterTask@{counterTask}}
+\index{counterTask@{counterTask}!Lab4Part1.ino@{Lab4Part1.ino}}
+\doxysubsubsection{\texorpdfstring{counterTask()}{counterTask()}}
+{\footnotesize\ttfamily \label{_lab4_part1_8ino_a2b4338007e5668fd56dfe3f333fc26d2} 
+void counter\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{arg}{}\end{DoxyParamCaption})}
+
+
+
+Display an incrementing counter on the LCD every 2 seconds. 
+
+Executes every 2 seconds to display a counter value (1-\/20) on the LCD. Updates the remaining execution time before suspending. Counter automatically resets to 0 after reaching 20. 
+\begin{DoxyParams}{Parameters}
+{\em arg} & Unused task parameter (pointer to void) \\
+\hline
+\end{DoxyParams}
+\Hypertarget{_lab4_part1_8ino_aa3845dae865c47cfdfe37652a373aa2a}\index{Lab4Part1.ino@{Lab4Part1.ino}!ledTask@{ledTask}}
+\index{ledTask@{ledTask}!Lab4Part1.ino@{Lab4Part1.ino}}
+\doxysubsubsection{\texorpdfstring{ledTask()}{ledTask()}}
+{\footnotesize\ttfamily \label{_lab4_part1_8ino_aa3845dae865c47cfdfe37652a373aa2a} 
+void led\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{arg}{}\end{DoxyParamCaption})}
+
+
+
+Toggle an LED when its execution period expires. 
+
+Executes for 500ms every scheduling cycle. The task maintains its own remaining execution time, which decreases by 250ms per slice, and suspends itself when the slice completes to allow the scheduler to select the next task. 
+\begin{DoxyParams}{Parameters}
+{\em arg} & Unused task parameter (pointer to void) \\
+\hline
+\end{DoxyParams}
+\Hypertarget{_lab4_part1_8ino_a4ea4585de20507653ce66667bb133d6f}\index{Lab4Part1.ino@{Lab4Part1.ino}!scheduleTasks@{scheduleTasks}}
+\index{scheduleTasks@{scheduleTasks}!Lab4Part1.ino@{Lab4Part1.ino}}
+\doxysubsubsection{\texorpdfstring{scheduleTasks()}{scheduleTasks()}}
+{\footnotesize\ttfamily \label{_lab4_part1_8ino_a4ea4585de20507653ce66667bb133d6f} 
+void schedule\+Tasks (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{arg}{}\end{DoxyParamCaption})}
+
+
+
+Implement Shortest Remaining Time First (SRTF) scheduling algorithm. 
+
+Scheduler examines all suspended tasks and resumes the task with the smallest remaining execution time. This ensures fair allocation and preemptive scheduling. Task remaining times are reset within each task when execution completes. 
+\begin{DoxyParams}{Parameters}
+{\em arg} & Unused task parameter (pointer to void) \\
+\hline
+\end{DoxyParams}

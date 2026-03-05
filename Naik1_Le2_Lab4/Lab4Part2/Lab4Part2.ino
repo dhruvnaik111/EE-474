@@ -1,7 +1,11 @@
-// Filename: Lab4Part2.ino
-// Authors: Dhruv Naik, Ethan Le
-// Date: 02/28/2026
-// Description: Implement a Dual-Core Light Sensor and Anomaly Detection System
+/**
+ * @file Lab4Part2.ino
+ * @authors Dhruv Naik, Ethan Le
+ * @date 02/28/2026
+ * @brief Dual-Core Light Sensor and Anomaly Detection System
+ * @details Implements a real-time system using FreeRTOS that runs on both cores
+ * of an ESP32 to monitor light levels, detect anomalies, and perform calculations.
+ */
 
 // ==================== Includes ====================
 #include <stddef.h>
@@ -13,26 +17,41 @@
 #define WINDOW_SIZE 5
 
 // ==================== Global Variables ====================
+volatile double smaValue = 0.0;
+volatile double currentLightLevel = 0.0;
+
 SemaphoreHandle_t xBinarySemaphore;
 TaskHandle_t lightDetectorTaskHandle;
 TaskHandle_t lcdTaskHandle;
 TaskHandle_t anomalyAlarmTaskHandle;
 TaskHandle_t primeCalculationTaskHandle;
 
+/**
+ * @struct SimpleMovingAverage
+ * @brief Structure to maintain simple moving average calculation state
+ */
 typedef struct {
+    /** @brief Buffer to store the last N light sensor values */
     double values[WINDOW_SIZE];
-    // Buffer to store the last N values
+    /** @brief Sum of all values currently in the buffer */
     double sum;
+    /** @brief Count of values in the buffer (max is WINDOW_SIZE) */
     int count;
+    /** @brief Current index position in the circular buffer */
     int index;
 } SimpleMovingAverage;
 
-volatile double smaValue = 0.0;
-volatile double currentLightLevel = 0.0;
-
-//Initialize LCD
+// ==================== Hardware Objects ====================
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
+// ==================== Function Prototypes ====================
+void lightDetectorTask(void *arg);
+void lcdTask(void *arg);
+void anomalyAlarmTask(void *arg);
+void primeCalculationTask(void *arg);
+bool isPrime(int num);
+
+// ==================== Function Implementations ====================
 void setup() {
    //         1. Initialize pins, serial, LCD, etc
    Serial.begin(9600);
@@ -47,8 +66,8 @@ void setup() {
    //         2. Create binary semaphore for synchronization of light level data.
    xBinarySemaphore = xSemaphoreCreateBinary();
    if (xBinarySemaphore != NULL) {
-      xSemaphoreGive(xBinarySemaphore);
       // Initialize the semaphore as available
+      xSemaphoreGive(xBinarySemaphore);
 
       //         3. Create Tasks
       //          - Create the `Light Detector Task` and assign it to Core 0.
@@ -67,8 +86,13 @@ void setup() {
 
 void loop() {}
 
-// Name: lightDetectorTask
-// Description: Continuously read light levels from the photoresistor, calculate a simple moving average (SMA), and signal when new data is ready (Core 0)
+/**
+ * @brief Continuously read light levels and calculate SMA
+ * @details Reads analog values from the photoresistor, calculates a simple moving
+ * average (SMA), and uses a binary semaphore to signal when new data is ready.
+ * Executes on Core 0. Runs indefinitely with 100ms delay between readings.
+ * @param arg Unused task parameter (pointer to void)
+ */
 void lightDetectorTask(void *arg) {
    // ====================> TODO:
    //          1. Initialize Variables
@@ -88,17 +112,24 @@ void lightDetectorTask(void *arg) {
       if(xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdTRUE) {
          //           - Calculate the simple moving average and update variables.
          smaValue = calculateSMA(&sma, currentLightLevel);
+
          //           - Give semaphore to signal data is ready.
          xSemaphoreGive(xBinarySemaphore);
       }
 
-      vTaskDelay(100 / portTICK_PERIOD_MS);
       // Delay for 0.1 seconds before next reading
+      vTaskDelay(100 / portTICK_PERIOD_MS);
    }
 }
 
-// Name: calculateSMA
-// Description: Helper function to calculate the Simple Moving Average (SMA) given a new value
+/**
+ * @brief Calculate the Simple Moving Average with a new value
+ * @details Updates the circular buffer with a new value, maintains the running sum,
+ * and returns the current average of all values in the buffer.
+ * @param sma Pointer to the SimpleMovingAverage structure to update
+ * @param newValue The new sensor reading to add to the SMA calculation
+ * @return The current simple moving average value
+ */
 double calculateSMA(SimpleMovingAverage *sma, double newValue) {
    // Remove the oldest value from the sum
    sma->sum -= sma->values[sma->index];
@@ -119,8 +150,13 @@ double calculateSMA(SimpleMovingAverage *sma, double newValue) {
    return sma->sum / sma->count;
 }
 
-// Name: lcdTask
-// Description: Wait for light level data to be ready, then update the LCD with the current light level and SMA. (Core 0)
+/**
+ * @brief Update LCD display with current light level and SMA values
+ * @details Waits for the binary semaphore, then updates the LCD display only when
+ * values have changed. Displays current light level on line 1 and SMA on line 2.
+ * Executes on Core 0 with 100ms polling interval.
+ * @param arg Unused task parameter (pointer to void)
+ */
 void lcdTask(void *arg) {
    // ====================> TODO:
    //          1. Initialize Variables
@@ -151,13 +187,18 @@ void lcdTask(void *arg) {
          xSemaphoreGive(xBinarySemaphore);
       }
 
-      vTaskDelay(100 / portTICK_PERIOD_MS);
       // Delay for 0.1 seconds before checking again
+      vTaskDelay(100 / portTICK_PERIOD_MS);
    }
 }
 
-// Name: anomalyAlarmTask
-// Description: Monitor the SMA of light levels and flash an LED if an anomaly is detected (Core 1)
+/**
+ * @brief Monitor SMA values and trigger LED alarm on anomaly detection
+ * @details Continuously monitors the SMA of light levels and flashes an LED signal
+ * if an anomaly is detected (SMA > 3800 or SMA < 300). Performs 3 flash cycles
+ * (100ms on, 2000ms off) per anomaly. Executes on Core 1.
+ * @param arg Unused task parameter (pointer to void)
+ */
 void anomalyAlarmTask(void *arg) {
    // ====================> TODO:
    //            1. Loop Continuously
@@ -183,14 +224,19 @@ void anomalyAlarmTask(void *arg) {
             vTaskDelay(2000 / portTICK_PERIOD_MS);
          }
       }
-
-      vTaskDelay(100 / portTICK_PERIOD_MS);
+      
       // Delay for 0.1 seconds before checking again
+      vTaskDelay(100 / portTICK_PERIOD_MS);
    }
 }
 
-//Name: primeCalculationTask
-//Description: Continuously calculate prime numbers and print them to the serial monitor. (Core 1)
+/**
+ * @brief Calculate and print prime numbers to serial monitor
+ * @details Iterates from 2 to 5000, checking each number for primality and printing
+ * prime numbers to the serial monitor. Executes on Core 1 and deletes itself
+ * after completion. Used to demonstrate dual-core task scheduling.
+ * @param arg Unused task parameter (pointer to void)
+ */
 void primeCalculationTask(void *arg) {
    // ====================> TODO:
    //            1. Loop from 2 to 5000
@@ -207,8 +253,12 @@ void primeCalculationTask(void *arg) {
    vTaskDelete(NULL); 
 }
 
-// Name: isPrime
-// Description: Helper function to check if a number is prime
+/**
+ * @brief Check if a number is prime
+ * @details Uses trial division method: tests divisibility up to sqrt(num).
+ * @param num The number to check for primality
+ * @return true if num is prime, false otherwise
+ */
 bool isPrime(int num) {
    for (int i = 2; i <= sqrt(num); i++) {
       if (num % i == 0) return false;

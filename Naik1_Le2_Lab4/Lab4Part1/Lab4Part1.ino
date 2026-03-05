@@ -1,46 +1,37 @@
-// Filename: Lab4Part1.ino
-// Authors: Dhruv Naik, Ethan Le
-// Date: 02/28/2026
-// Description: Manage and schedule tasks with preemptive scheduling algorithms in freeRTOS
-
-// Version: 2.7
-// Authors: Dhruv Naik, Ethan Le
-// Date: 02/25/2026
-// Change(s): Fixed comments to comply with the code guidelines. 
+/**
+ * @file Lab4Part1.ino
+ * @authors Dhruv Naik, Ethan Le
+ * @date 02/28/2026
+ * @brief Manage and schedule tasks with preemptive scheduling algorithms in FreeRTOS
+ * @details Implements Shortest Remaining Time First (SRTF) scheduling to manage
+ * three concurrent tasks: LED control, counter display, and alphabet printing.
+ */ 
 
 
 // ==================== Includes ====================
 #include <stddef.h>
 #include <LiquidCrystal_I2C.h>
 
-
 // ==================== Macros ====================
 #define LED_PIN 2
 
-
 // ==================== Global Constants ====================
-// Execution times converted from milliseconds to FreeRTOS ticks
 const TickType_t ledTaskExecutionTime = 500 / portTICK_PERIOD_MS;
 const TickType_t counterTaskExecutionTime = 2000 / portTICK_PERIOD_MS;
 const TickType_t alphabetTaskExecutionTime = 13000 / portTICK_PERIOD_MS;
 
-
 // ==================== Global Variables ====================
-// Remaining execution time for each task (shared between scheduler and tasks)
 volatile TickType_t remainingLedTime = ledTaskExecutionTime;
 volatile TickType_t remainingCounterTime = counterTaskExecutionTime;
 volatile TickType_t remainingAlphabetTime = alphabetTaskExecutionTime;
 
-// Task handles used by the scheduler to resume suspended tasks
 TaskHandle_t ledTaskHandle;
 TaskHandle_t counterTaskHandle;
 TaskHandle_t alphabetTaskHandle;
 TaskHandle_t schedulerTaskHandle;
 
-
 // ==================== Hardware Objects ====================
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-
 
 // ==================== Function Prototypes ====================
 void ledTask(void *arg);
@@ -48,14 +39,37 @@ void counterTask(void *arg);
 void alphabetTask(void *arg);
 void scheduleTasks(void *arg);
 
-
 // ==================== Function Implementations ====================
+void setup() {
 
+   Serial.begin(9600);
 
-// Name: ledTask
-// Description: Toggles an LED when its execution period expires.
-//              The task decreases its remaining time each slice
-//              and suspends itself until resumed by the scheduler.
+   Wire.begin(8, 9);
+   lcd.init();
+   delay(2);
+   lcd.backlight();
+   lcd.clear();
+
+   pinMode(LED_PIN, OUTPUT);
+
+   // Worker tasks (priority 1)
+   xTaskCreatePinnedToCore(ledTask, "ledTask", 4096, NULL, 1, &ledTaskHandle, 0);
+   xTaskCreatePinnedToCore(counterTask, "counterTask", 4096, NULL, 1, &counterTaskHandle, 0);
+   xTaskCreatePinnedToCore(alphabetTask, "alphabetTask", 4096, NULL, 1, &alphabetTaskHandle, 0);
+
+   // Scheduler task (higher priority to control execution order)
+   xTaskCreatePinnedToCore(scheduleTasks, "scheduleTasks", 4096, NULL, 2, &schedulerTaskHandle, 0);
+}
+
+void loop() {}
+
+/**
+ * @brief Toggle an LED when its execution period expires
+ * @details Executes for 500ms every scheduling cycle. The task maintains its own
+ * remaining execution time, which decreases by 250ms per slice, and suspends itself
+ * when the slice completes to allow the scheduler to select the next task.
+ * @param arg Unused task parameter (pointer to void)
+ */
 void ledTask(void *arg) {
    while (1) {
 
@@ -77,11 +91,13 @@ void ledTask(void *arg) {
    }
 }
 
-
-// Name: counterTask
-// Description: Displays an incrementing counter on the LCD every
-//              2 seconds. The counter resets after reaching 20.
-//              The task updates its remaining time before suspending.
+/**
+ * @brief Display an incrementing counter on the LCD every 2 seconds
+ * @details Executes every 2 seconds to display a counter value (1-20) on the LCD.
+ * Updates the remaining execution time before suspending. Counter automatically
+ * resets to 0 after reaching 20.
+ * @param arg Unused task parameter (pointer to void)
+ */
 void counterTask(void *arg) {
    static int counter = 1;
 
@@ -114,11 +130,13 @@ void counterTask(void *arg) {
    }
 }
 
-
-// Name: alphabetTask
-// Description: Prints letters A through Z to Serial every 13 seconds.
-//              After reaching 'Z', the sequence restarts at 'A'.
-//              The task updates its remaining time before suspending.
+/**
+ * @brief Print letters A through Z to Serial every 13 seconds
+ * @details Executes every 13 seconds to print the next letter in the alphabet sequence.
+ * After reaching 'Z', the sequence automatically restarts at 'A'. Updates remaining
+ * execution time before suspending.
+ * @param arg Unused task parameter (pointer to void)
+ */
 void alphabetTask(void *arg) {
    char letter = 'A';
 
@@ -146,12 +164,13 @@ void alphabetTask(void *arg) {
    }
 }
 
-
-// Name: scheduleTasks
-// Description: Implements Shortest Remaining Time First scheduling
-//              logic. The scheduler resumes the suspended task with
-//              the smallest remaining execution time. Once a task
-//              finishes, its remaining time is reset within the task.
+/**
+ * @brief Implement Shortest Remaining Time First (SRTF) scheduling algorithm
+ * @details Scheduler examines all suspended tasks and resumes the task with the
+ * smallest remaining execution time. This ensures fair allocation and preemptive
+ * scheduling. Task remaining times are reset within each task when execution completes.
+ * @param arg Unused task parameter (pointer to void)
+ */
 void scheduleTasks(void *arg) {
    while (1) {
 
@@ -187,29 +206,3 @@ void scheduleTasks(void *arg) {
       vTaskDelay(50 / portTICK_PERIOD_MS);
    }
 }
-
-// ==================== Setup and Loop functions ====================
-void setup() {
-
-   Serial.begin(9600);
-
-   Wire.begin(8, 9);
-   lcd.init();
-   delay(2);
-   lcd.backlight();
-   lcd.clear();
-
-   pinMode(LED_PIN, OUTPUT);
-
-   // Worker tasks (priority 1)
-   xTaskCreatePinnedToCore(ledTask, "ledTask", 4096, NULL, 1, &ledTaskHandle, 0);
-   xTaskCreatePinnedToCore(counterTask, "counterTask", 4096, NULL, 1, &counterTaskHandle, 0);
-   xTaskCreatePinnedToCore(alphabetTask, "alphabetTask", 4096, NULL, 1, &alphabetTaskHandle, 0);
-
-   // Scheduler task (higher priority to control execution order)
-   xTaskCreatePinnedToCore(scheduleTasks, "scheduleTasks", 4096, NULL, 2, &schedulerTaskHandle, 0);
-}
-
-
-// Nothing in loop since all tasks are managed by FreeRTOS
-void loop() {}
