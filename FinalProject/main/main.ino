@@ -2,6 +2,7 @@
 #include <Stepper.h>
 #include <LiquidCrystal_I2C.h>
 #include <driver/i2s.h>
+#include <math.h>
 
 // --- Pins ---
 const int servoPin = 13;
@@ -21,9 +22,18 @@ const int echoPin = 2;
 #define I2S_SAMPLE_RATE   16000
 #define I2S_BUFFER_LEN    64
 
+// --- Microphone Globals ---
+float smoothedPeak = 0;
+float noiseFloor = 0;
+bool noiseCalibrated = false;
+unsigned long lastCalibrationTime = 0;
+#define CALIBRATION_INTERVAL_MS    10000
+#define VOICE_THRESHOLD_MULTIPLIER 2.5
+#define SPEECH_FREQ_WEIGHT         1.4
+
 // --- Objects ---
 Servo myServo;
-const int stepsPerRev = 2048; 
+const int stepsPerRev = 2048;
 Stepper myStepper(stepsPerRev, IN1, IN3, IN2, IN4);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -59,35 +69,126 @@ void setupMicrophone() {
   Serial.println("Microphone initialized.");
 }
 
-// --- Read and print mic audio level ---
+// --- Noise Floor Calibration ---
+void calibrateNoiseFloor() {
+  Serial.println("Calibrating noise floor... please be quiet.");
+
+  int32_t samples[I2S_BUFFER_LEN];
+  size_t bytesRead = 0;
+  double sum = 0;
+  int totalSamples = 0;
+
+  // Average RMS over 20 buffers (~1 second of audio)
+  for (int b = 0; b < 20; b++) {
+    i2s_read(I2S_PORT, &samples, sizeof(samples), &bytesRead, portMAX_DELAY);
+    int count = bytesRead / sizeof(int32_t);
+    for (int i = 0; i < count; i++) {
+      int32_t s = samples[i] >> 8;
+      sum += (double)s * s;
+    }
+    totalSamples += count;
+  }
+
+  noiseFloor = sqrt(sum / totalSamples);
+  noiseCalibrated = true;
+  lastCalibrationTime = millis();
+
+  Serial.print("Noise floor calibrated: ");
+  Serial.println(noiseFloor);
+}
+
+// --- Read Microphone ---
 void readMicrophone() {
   int32_t samples[I2S_BUFFER_LEN];
   size_t bytesRead = 0;
 
-  i2s_read(I2S_PORT, &samples, sizeof(samples), &bytesRead, portMAX_DELAY);
-
-  int samplesRead = bytesRead / sizeof(int32_t);
-
-  // Find peak amplitude in this buffer
-  int32_t peak = 0;
-  for (int i = 0; i < samplesRead; i++) {
-    // INMP441 data is in the top 24 bits of the 32-bit word — shift down
-    int32_t sample = samples[i] >> 8;
-    if (abs(sample) > abs(peak)) {
-      peak = sample;
-    }
+  // Auto-calibrate noise floor on first run and every CALIBRATION_INTERVAL_MS
+  if (!noiseCalibrated ||
+      (millis() - lastCalibrationTime > CALIBRATION_INTERVAL_MS)) {
+    calibrateNoiseFloor();
   }
 
-  Serial.print("Mic Peak: ");
-  Serial.println(peak);
+  i2s_read(I2S_PORT, &samples, sizeof(samples), &bytesRead, portMAX_DELAY);
+  int samplesRead = bytesRead / sizeof(int32_t);
 
-  // Show audio level on LCD row 1
+  // --- RMS of current buffer ---
+  double sum = 0;
+  for (int i = 0; i < samplesRead; i++) {
+    int32_t s = samples[i] >> 8;
+    sum += (double)s * s;
+  }
+  float rms = sqrt(sum / samplesRead);
+
+  // --- Noise-subtracted RMS ---
+  float cleanRMS = 0;
+  if (rms > noiseFloor) {
+    cleanRMS = sqrt((rms * rms) - (noiseFloor * noiseFloor));
+  }
+
+  // --- Smooth the clean RMS to reduce jitter ---
+  smoothedPeak = (0.3 * cleanRMS) + (0.7 * smoothedPeak);
+
+  // --- Convert to dB ---
+  float rawDB   = (rms > 0)      ? 20.0 * log10(rms / 8388608.0)      : -100.0;
+  float cleanDB = (cleanRMS > 0) ? 20.0 * log10(cleanRMS / 8388608.0) : -100.0;
+
+  // --- Voice detection ---
+  float voiceThreshold = noiseFloor * VOICE_THRESHOLD_MULTIPLIER;
+  bool voiceDetected = (rms > voiceThreshold);
+
+  // --- Serial output ---
+  Serial.print("Raw dB: ");         Serial.print(rawDB, 1);
+  Serial.print(" | Clean dB: ");    Serial.print(cleanDB, 1);
+  Serial.print(" | Noise floor: "); Serial.print(noiseFloor, 0);
+  Serial.print(" | Voice: ");       Serial.println(voiceDetected ? "YES" : "no");
+
+  // --- LCD: show clean dB and voice status ---
   lcd.setCursor(0, 1);
-  lcd.print("Mic:");
-  lcd.print(peak);
-  lcd.print("      "); // Pad to clear old digits
+  if (voiceDetected) {
+    lcd.print("Voice! ");
+    lcd.print(cleanDB, 1);
+    lcd.print("dB  ");
+  } else {
+    lcd.print("Quiet ");
+    lcd.print(rawDB, 1);
+    lcd.print("dB  ");
+  }
 }
 
+// --- Distance Sensor ---
+float getDistance() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 30000);
+
+  if (duration == 0) return -1.0;
+
+  return (duration / 2.0) * 0.0343;
+}
+
+// --- Servo Helper ---
+void moveServoGentle(int target) {
+  int stepDir = (target > currentPos) ? 1 : -1;
+  while (currentPos != target) {
+    currentPos += stepDir;
+    myServo.write(currentPos);
+    delay(30);
+  }
+}
+
+// --- Stepper Helper ---
+void releaseStepper() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
+
+// ===========================
 void setup() {
   Serial.begin(115200);
 
@@ -106,15 +207,16 @@ void setup() {
   ESP32PWM::allocateTimer(0);
   myServo.setPeriodHertz(50);
   myServo.attach(servoPin, 500, 2400);
-  myServo.write(0); 
+  myServo.write(0);
 
   // Stepper Setup
-  myStepper.setSpeed(8); 
+  myStepper.setSpeed(8);
   releaseStepper();
 
   // Microphone Setup
   setupMicrophone();
-  
+  calibrateNoiseFloor(); // Run once at startup
+
   Serial.println("System initialized with Capacitor Buffer & Sensors.");
 }
 
@@ -137,7 +239,7 @@ void loop() {
   Serial.println("Stepper Moving...");
   myStepper.step(512);
   releaseStepper();
-  delay(1000); 
+  delay(1000);
 
   // 2. Move Servo slowly to 90
   Serial.println("Servo Moving Slowly...");
@@ -152,34 +254,4 @@ void loop() {
 
   Serial.println("Cooldown period...");
   delay(4000);
-}
-
-float getDistance() {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  
-  long duration = pulseIn(echoPin, HIGH, 30000);
-  
-  if (duration == 0) return -1.0;
-  
-  return (duration / 2.0) * 0.0343;
-}
-
-void moveServoGentle(int target) {
-  int stepDir = (target > currentPos) ? 1 : -1;
-  while (currentPos != target) {
-    currentPos += stepDir;
-    myServo.write(currentPos);
-    delay(30);
-  }
-}
-
-void releaseStepper() {
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
 }
