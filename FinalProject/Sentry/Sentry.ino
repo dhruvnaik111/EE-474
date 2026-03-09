@@ -74,6 +74,10 @@ void setup() {
    pinMode(TRIG_PIN, OUTPUT);
    pinMode(ECHO_PIN, INPUT);
 
+   //buzzer
+   pinMode(buzzerPin, OUTPUT);
+   digitalWrite(buzzerPin, LOW);
+
    // Initialize Motors
    ESP32PWM::allocateTimer(0);
    tiltServo.setPeriodHertz(50);
