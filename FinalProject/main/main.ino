@@ -1,177 +1,51 @@
-#include <ESP32Servo.h>
-#include <Stepper.h>
-#include <LiquidCrystal_I2C.h>
+/**
+ * @file main.ino
+ * @authors Dhruv Naik, Ethan Le
+ * @date 03/08/2026
+ * @brief Entry point and FreeRTOS task implementations for the 2-axis
+ *        ultrasonic sentry system.
+ * @details Initialises all hardware peripherals, FreeRTOS primitives, hardware
+ *          timers, and spawns all tasks across both ESP32-S3 cores. All hardware
+ *          helper functions, ISRs, pin definitions, macros, and shared state
+ *          are defined in helpers.h.
+ *
+ *          Hardware summary:
+ *            - Stepper motor (28BYJ-48): horizontal sweep ±90 degrees
+ *            - Servo motor (SG90):       vertical tilt 0-70 degrees (0 = horizontal)
+ *            - HC-SR04 ultrasonic:       target detection within 30cm
+ *            - LiquidCrystal I2C LCD:    16x2 status display
+ *            - Active buzzer (GPIO 1):   PWM alert, auto-off after 2 seconds
+ *            - E-stop button (GPIO 6):   interrupt-driven emergency halt
+ *
+ *          FreeRTOS task summary:
+ *            Core 0 — servoWriteTask (P3), sensorTask (P3, 128Hz),
+ *                     lcdTask (P1), estopTask (P4, 50Hz)
+ *            Core 1 — scanTask (P2)
+ *
+ *          Timer summary:
+ *            Timer 0 — buzzTimerISR fires every 500ms for buzzer toggle
+ *            Timer 1 — allocated to ESP32PWM for servo PWM signal
+ */
 
-// --- Pins ---
-const int servoPin   = 13;
-const int IN1        = 19;
-const int IN2        = 18;
-const int IN3        = 5;
-const int IN4        = 17;
-const int trigPin    = 4;
-const int echoPin    = 2;
-const int buzzerPin  = 1;
-const int estopPin   = 6;
+// ==================== Includes ====================
+#include "helpers.h"
 
-// --- Stepper Config ---
-#define STEPS_PER_DEG       (2048.0 / 360.0)
-#define STEP_DELAY_MS       4
-#define STEPPER_MAX_DEG     90.0
-
-// --- Servo Config ---
-#define SERVO_PHYSICAL_OFFSET   0
-#define SERVO_START_DEG         0
-#define SERVO_MIN_DEG           0
-#define SERVO_MAX_DEG          70
-#define SERVO_STEP_DEG         10
-#define SERVO_SETTLE_MS       300
-
-// --- Buzzer Config ---
-#define BUZZ_FREQ        2000
-#define BUZZ_RESOLUTION  8
-#define BUZZ_DUTY_ON     128
-#define BUZZ_INTERVAL_MS 500
-
-// --- Detection ---
-#define TARGET_DIST_CM      30.0
-#define LOST_DIST_CM        40.0
-
-// --- E-Stop Debounce ---
-#define DEBOUNCE_MS         50    // Minimum ms between valid button events
-
-// --- System State ---
-enum SystemState { SCANNING, LOCKED, ESTOP };
-volatile SystemState systemState     = SCANNING;
-volatile SystemState preStopState    = SCANNING; // State before e-stop
-volatile bool        estopActive     = false;
-volatile unsigned long lastDebounceTime = 0;
-
-// --- Shared State ---
-volatile float stepperAngle  = 0.0;
-volatile int   servoAngleDeg = SERVO_START_DEG;
-volatile float lastDist      = -1.0;
-SemaphoreHandle_t stateMutex;
-
-// --- Servo Queue ---
-QueueHandle_t servoQueue;
-
-// --- Task Handles ---
+// ==================== Task Handles ====================
 TaskHandle_t scanTaskHandle       = NULL;
 TaskHandle_t sensorTaskHandle     = NULL;
 TaskHandle_t lcdTaskHandle        = NULL;
 TaskHandle_t servoWriteTaskHandle = NULL;
 TaskHandle_t estopTaskHandle      = NULL;
 
-// --- Objects ---
-Servo myServo;
-const int stepsPerRev = 2048;
-Stepper myStepper(stepsPerRev, IN1, IN3, IN2, IN4);
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+// ==================== FreeRTOS Task Implementations ====================
 
-// =====================
-// --- E-Stop ISR ---
-// Triggered on both RISING and FALLING edge so we catch
-// press and release. Debounced by ignoring events within
-// DEBOUNCE_MS of the last valid event.
-// IRAM_ATTR keeps the ISR in fast IRAM on ESP32.
-// =====================
-void IRAM_ATTR estopISR() {
-  unsigned long now = millis();
-  if (now - lastDebounceTime < DEBOUNCE_MS) return; // Ignore bounce
-  lastDebounceTime = now;
-
-  // Button pressed (LOW because INPUT_PULLUP) — engage e-stop
-  if (digitalRead(estopPin) == LOW) {
-    estopActive = true;
-  } else {
-    // Button released — clear e-stop
-    estopActive = false;
-  }
-}
-
-// =====================
-// --- E-Stop Task ---
-// Core 0. Watches estopActive flag set by ISR.
-// On press: saves current state, resets everything to start.
-// On release: resumes scanning from the beginning.
-// =====================
-void estopTask(void *pvParameters) {
-  bool wasActive = false;
-
-  while (true) {
-    if (estopActive && !wasActive) {
-      wasActive = true;
-
-      Serial.println("[ESTOP] Emergency stop triggered!");
-
-      // Save what we were doing and force ESTOP state
-      xSemaphoreTake(stateMutex, portMAX_DELAY);
-      preStopState = systemState;
-      systemState  = ESTOP;
-      xSemaphoreGive(stateMutex);
-
-      // Silence buzzer immediately
-      ledcWrite(buzzerPin, 0);
-
-      // Release stepper coils
-      releaseStepper();
-
-      // Return servo to horizontal
-      int homeAngle = SERVO_START_DEG + SERVO_PHYSICAL_OFFSET;
-      xQueueSend(servoQueue, &homeAngle, portMAX_DELAY);
-
-      // Reset all positional tracking to start state
-      xSemaphoreTake(stateMutex, portMAX_DELAY);
-      stepperAngle  = 0.0;
-      servoAngleDeg = SERVO_START_DEG;
-      lastDist      = -1.0;
-      xSemaphoreGive(stateMutex);
-
-      // Drive stepper back to center
-      // We do a blind step-back using the last known angle
-      // since stepperToCenter() relies on shared state we just reset
-      // Note: stepperAngle was reset to 0 above so we can't use it —
-      // instead we just release and let the scan task restart from center
-      // on resume. For a hard return, keep a separate raw step counter.
-      releaseStepper();
-
-      Serial.println("[ESTOP] System halted. Waiting for button release...");
-
-    } else if (!estopActive && wasActive) {
-      wasActive = false;
-
-      Serial.println("[ESTOP] Released. Restarting from scan.");
-
-      // Reset to SCANNING from the beginning
-      xSemaphoreTake(stateMutex, portMAX_DELAY);
-      systemState   = SCANNING;
-      stepperAngle  = 0.0;
-      servoAngleDeg = SERVO_START_DEG;
-      xSemaphoreGive(stateMutex);
-
-      // Return servo to start
-      int homeAngle = SERVO_START_DEG + SERVO_PHYSICAL_OFFSET;
-      xQueueSend(servoQueue, &homeAngle, portMAX_DELAY);
-
-      ledcWrite(buzzerPin, 0);
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(20)); // Poll at 20ms — well above debounce threshold
-  }
-}
-
-// =====================
-// --- Servo Helper ---
-// =====================
-void servoWrite(int logicalDeg) {
-  int physical = constrain(logicalDeg + SERVO_PHYSICAL_OFFSET, 0, 180);
-  xQueueSend(servoQueue, &physical, portMAX_DELAY);
-}
-
-// =====================
-// --- Servo Write Task ---
-// Core 0. Sole owner of myServo.write().
-// =====================
+/**
+ * @brief Receives servo angle commands from servoQueue and writes to servo.
+ * @details Core 0, Priority 3. Sole owner of myServo.write() to avoid
+ *          ESP32Servo cross-core threading issues. Blocks indefinitely on
+ *          queue receive, consuming no CPU while idle.
+ * @param pvParameters Unused FreeRTOS task parameter.
+ */
 void servoWriteTask(void *pvParameters) {
   int angle;
   while (true) {
@@ -181,104 +55,131 @@ void servoWriteTask(void *pvParameters) {
   }
 }
 
-// =====================
-// --- Stepper Helpers ---
-// =====================
-void releaseStepper() {
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-}
+/**
+ * @brief Polls the ultrasonic sensor at 128Hz and manages SCANNING/LOCKED state.
+ * @details Core 0, Priority 3. Uses vTaskDelayUntil for precise 128Hz timing.
+ *          Posts distance readings to distQueue via xQueueOverwrite so lcdTask
+ *          always receives the freshest value without blocking. Sets buzzEnabled
+ *          when a target is acquired to trigger the hardware timer buzzer.
+ * @param pvParameters Unused FreeRTOS task parameter.
+ */
+void sensorTask(void *pvParameters) {
+  while (true) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
 
-bool stepDegrees(float degrees) {
-  int steps = (int)(degrees * STEPS_PER_DEG);
-  int dir   = (steps > 0) ? 1 : -1;
-  steps     = abs(steps);
+    if (systemState != ESTOP) {
+      float dist = getStableDistance();
 
-  for (int s = 0; s < steps; s++) {
-    xSemaphoreTake(stateMutex, portMAX_DELAY);
-    float angle = stepperAngle;
-    xSemaphoreGive(stateMutex);
+      // Overwrite queue — LCD always gets freshest reading, no blocking
+      xQueueOverwrite(distQueue, &dist);
 
-    float newAngle = angle + dir * (360.0 / 2048.0);
-    if (newAngle > STEPPER_MAX_DEG || newAngle < -STEPPER_MAX_DEG) {
-      releaseStepper();
-      return false;
+      xSemaphoreTake(stateMutex, portMAX_DELAY);
+
+      if (systemState == SCANNING && dist > 0 && dist <= TARGET_DIST_CM) {
+        systemState   = LOCKED;
+        buzzEnabled   = true;   // Trigger timer-driven 2-second buzzer
+        buzzTickCount = 0;
+        Serial.print("[SENSOR] TARGET ACQUIRED at ");
+        Serial.print(dist, 1);
+        Serial.println("cm — LOCKED.");
+
+      } else if (systemState == LOCKED && (dist < 0 || dist > LOST_DIST_CM)) {
+        systemState   = SCANNING;
+        buzzEnabled   = false;  // Cancel buzzer if target clears before 2s
+        buzzTickCount = 0;
+        ledcWrite(buzzerPin, 0);
+        Serial.println("[SENSOR] Target lost — resuming scan.");
+      }
+
+      xSemaphoreGive(stateMutex);
+
+    } else {
+      // E-stopped — push invalid reading so LCD shows --
+      float invalid = -1.0;
+      xQueueOverwrite(distQueue, &invalid);
     }
 
-    myStepper.step(dir);
+    // Precise 128Hz timing using absolute wake time
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(SENSOR_TASK_MS));
+  }
+}
 
-    xSemaphoreTake(stateMutex, portMAX_DELAY);
-    stepperAngle = newAngle;
-    xSemaphoreGive(stateMutex);
+/**
+ * @brief Monitors the e-stop button at 50Hz and manages the ESTOP state.
+ * @details Core 0, Priority 4 (highest). Uses vTaskDelayUntil for precise
+ *          50Hz timing. On press: transitions to ESTOP, homes servo to
+ *          horizontal, releases stepper coils, and silences the buzzer.
+ *          The stepper horizontal angle is intentionally preserved so the
+ *          sweep can resume from the correct physical position on release.
+ *          On release: transitions back to SCANNING.
+ * @param pvParameters Unused FreeRTOS task parameter.
+ */
+void estopTask(void *pvParameters) {
+  bool wasActive = false;
 
-    vTaskDelay(pdMS_TO_TICKS(STEP_DELAY_MS));
+  while (true) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
 
-    // Abort mid-step if locked or e-stopped
-    if (systemState == LOCKED || systemState == ESTOP) {
+    if (estopActive && !wasActive) {
+      wasActive = true;
+      Serial.println("[ESTOP] Emergency stop triggered!");
+
+      xSemaphoreTake(stateMutex, portMAX_DELAY);
+      systemState   = ESTOP;
+      // stepperAngle intentionally NOT reset — horizontal position preserved
+      servoAngleDeg = SERVO_START_DEG;
+      xSemaphoreGive(stateMutex);
+
+      // Silence buzzer immediately
+      buzzEnabled   = false;
+      buzzTickCount = 0;
+      ledcWrite(buzzerPin, 0);
+
+      // Release stepper coils without altering angle tracking
       releaseStepper();
-      return false;
+
+      // Home servo to horizontal via queue
+      int homeAngle = SERVO_START_DEG + SERVO_PHYSICAL_OFFSET;
+      xQueueSend(servoQueue, &homeAngle, portMAX_DELAY);
+
+      Serial.println("[ESTOP] Halted. Waiting for button release...");
+
+    } else if (!estopActive && wasActive) {
+      wasActive = false;
+      Serial.println("[ESTOP] Released. Resuming from current horizontal position.");
+
+      xSemaphoreTake(stateMutex, portMAX_DELAY);
+      systemState   = SCANNING;
+      // stepperAngle unchanged — motor resumes from physical position
+      servoAngleDeg = SERVO_START_DEG;
+      xSemaphoreGive(stateMutex);
+
+      // Confirm servo at home — send again to be safe
+      int homeAngle = SERVO_START_DEG + SERVO_PHYSICAL_OFFSET;
+      xQueueSend(servoQueue, &homeAngle, portMAX_DELAY);
+      ledcWrite(buzzerPin, 0);
     }
+
+    // Precise 50Hz timing using absolute wake time
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(ESTOP_TASK_MS));
   }
-
-  releaseStepper();
-  return true;
 }
 
-void stepperToCenter() {
-  xSemaphoreTake(stateMutex, portMAX_DELAY);
-  float angle = stepperAngle;
-  xSemaphoreGive(stateMutex);
-
-  Serial.print("[MOTOR] Returning to center from ");
-  Serial.print(angle, 1);
-  Serial.println(" deg");
-
-  stepDegrees(-angle);
-
-  xSemaphoreTake(stateMutex, portMAX_DELAY);
-  stepperAngle = 0.0;
-  xSemaphoreGive(stateMutex);
-
-  releaseStepper();
-}
-
-// =====================
-// --- Ultrasonic Helper ---
-// =====================
-float getDistance() {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  long duration = pulseIn(echoPin, HIGH, 30000);
-  if (duration == 0) return -1.0;
-  return (duration / 2.0) * 0.0343;
-}
-
-float getStableDistance() {
-  float total = 0;
-  int   valid = 0;
-  for (int i = 0; i < 3; i++) {
-    float d = getDistance();
-    if (d > 0) { total += d; valid++; }
-    vTaskDelay(pdMS_TO_TICKS(10));
-  }
-  return (valid > 0) ? total / valid : -1.0;
-}
-
-// =====================
-// --- Scan Task ---
-// Core 1. Boustrophedon dome sweep.
-// Pauses on LOCKED or ESTOP, resumes from last tilt on LOCKED,
-// restarts from beginning on ESTOP release.
-// =====================
+/**
+ * @brief Performs the boustrophedon 3D dome sweep using stepper and servo.
+ * @details Core 1, Priority 2. Sweeps the servo vertically row by row while
+ *          the stepper scans the full horizontal arc at each row, alternating
+ *          direction each row (snake/boustrophedon pattern) to avoid returning
+ *          to center between rows. Pauses immediately on LOCKED or ESTOP.
+ *          Resumes from the last saved vertical row after LOCKED clears.
+ *          Resets vertical sweep to the start after ESTOP clears, while
+ *          preserving the horizontal stepper position throughout.
+ * @param pvParameters Unused FreeRTOS task parameter.
+ */
 void scanTask(void *pvParameters) {
   myStepper.setSpeed(8);
 
-  // Startup servo test
+  // Startup servo test — confirms physical movement before sweep begins
   Serial.println("[SCAN] Servo test...");
   servoWrite(SERVO_START_DEG);
   vTaskDelay(pdMS_TO_TICKS(500));
@@ -288,15 +189,14 @@ void scanTask(void *pvParameters) {
   vTaskDelay(pdMS_TO_TICKS(600));
   Serial.println("[SCAN] Servo test complete.");
 
-  int stepperDir  = 1;
-  int currentTilt = SERVO_MIN_DEG;
+  int stepperDir  = 1;             // +1 = sweep right first, -1 = sweep left
+  int currentTilt = SERVO_MIN_DEG; // Tracks current vertical row for resume
 
   while (true) {
-    // Pause on LOCKED or ESTOP
     if (systemState == LOCKED || systemState == ESTOP) {
       releaseStepper();
 
-      // If e-stopped, reset sweep position for clean restart
+      // On e-stop reset vertical sweep state only — horizontal preserved
       if (systemState == ESTOP) {
         currentTilt = SERVO_MIN_DEG;
         stepperDir  = 1;
@@ -308,16 +208,15 @@ void scanTask(void *pvParameters) {
 
     Serial.println("[SCAN] Resuming dome sweep.");
 
-    for (int tilt = currentTilt; tilt <= SERVO_MAX_DEG;
-         tilt += SERVO_STEP_DEG) {
+    // Resume from currentTilt — preserves vertical position across lock/unlock
+    for (int tilt = currentTilt; tilt <= SERVO_MAX_DEG; tilt += SERVO_STEP_DEG) {
 
-      // Pause on LOCKED or ESTOP mid-sweep
       if (systemState == LOCKED) {
-        currentTilt = tilt;
+        currentTilt = tilt; // Save row so we resume here after unlock
         break;
       }
       if (systemState == ESTOP) {
-        currentTilt = SERVO_MIN_DEG; // Reset on e-stop
+        currentTilt = SERVO_MIN_DEG; // Full vertical reset on e-stop
         stepperDir  = 1;
         break;
       }
@@ -332,6 +231,7 @@ void scanTask(void *pvParameters) {
       Serial.print(tilt);
       Serial.println(" deg");
 
+      // Sweep full horizontal arc in current direction (snake pattern)
       float sweepDeg = stepperDir * STEPPER_MAX_DEG * 2;
       stepDegrees(sweepDeg);
 
@@ -345,8 +245,8 @@ void scanTask(void *pvParameters) {
         break;
       }
 
-      stepperDir  = -stepperDir;
-      currentTilt = tilt + SERVO_STEP_DEG;
+      stepperDir  = -stepperDir;           // Flip horizontal direction each row
+      currentTilt = tilt + SERVO_STEP_DEG; // Advance saved vertical position
     }
 
     if (systemState == LOCKED || systemState == ESTOP) {
@@ -354,7 +254,7 @@ void scanTask(void *pvParameters) {
       continue;
     }
 
-    // Full sweep complete — return home
+    // Full dome sweep complete — return both axes to home position
     Serial.println("[SCAN] Sweep complete. Returning home.");
     servoWrite(SERVO_START_DEG);
     xSemaphoreTake(stateMutex, portMAX_DELAY);
@@ -369,81 +269,34 @@ void scanTask(void *pvParameters) {
   }
 }
 
-// =====================
-// --- Sensor Task ---
-// Core 0. Polls ultrasonic every 80ms.
-// Skips detection while e-stopped.
-// =====================
-void sensorTask(void *pvParameters) {
-  bool buzzerState = false;
-  unsigned long lastBuzzTime = 0;
-
-  while (true) {
-    // Don't poll sensor while e-stopped
-    if (systemState == ESTOP) {
-      ledcWrite(buzzerPin, 0);
-      buzzerState = false;
-      vTaskDelay(pdMS_TO_TICKS(80));
-      continue;
-    }
-
-    float dist = getStableDistance();
-
-    xSemaphoreTake(stateMutex, portMAX_DELAY);
-    lastDist = dist;
-
-    if (systemState == SCANNING && dist > 0 && dist <= TARGET_DIST_CM) {
-      systemState = LOCKED;
-      Serial.print("[SENSOR] TARGET ACQUIRED at ");
-      Serial.print(dist, 1);
-      Serial.println("cm — LOCKED.");
-
-    } else if (systemState == LOCKED && (dist < 0 || dist > LOST_DIST_CM)) {
-      systemState = SCANNING;
-      ledcWrite(buzzerPin, 0);
-      buzzerState = false;
-      Serial.println("[SENSOR] Target lost — resuming scan.");
-    }
-
-    xSemaphoreGive(stateMutex);
-
-    // PWM buzz on/off while locked
-    if (systemState == LOCKED) {
-      unsigned long now = millis();
-      if (now - lastBuzzTime >= BUZZ_INTERVAL_MS) {
-        buzzerState = !buzzerState;
-        ledcWrite(buzzerPin, buzzerState ? BUZZ_DUTY_ON : 0);
-        lastBuzzTime = now;
-      }
-    } else {
-      ledcWrite(buzzerPin, 0);
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(80));
-  }
-}
-
-// =====================
-// --- LCD Task ---
-// Core 0. Updates every 200ms.
-// SCANNING: H angle, V tilt, distance
-// LOCKED:   TARGET alert + coords + distance
-// ESTOP:    Emergency stop message
-// =====================
+/**
+ * @brief Updates the LCD display at 200ms intervals.
+ * @details Core 0, Priority 1 (lowest). Reads the latest distance from
+ *          distQueue using a non-blocking peek and reads system state from
+ *          shared variables protected by stateMutex. Displays three different
+ *          layouts depending on state: SCANNING shows live H/V angles and
+ *          distance, LOCKED shows a target alert with the coordinates where
+ *          the target was first detected, ESTOP shows a halt message.
+ * @param pvParameters Unused FreeRTOS task parameter.
+ */
 void lcdTask(void *pvParameters) {
   float lockedStepAngle  = 0.0;
   int   lockedServoAngle = SERVO_START_DEG;
   float lockedDist       = 0.0;
   bool  coordsCaptured   = false;
+  float dist             = -1.0;
 
   while (true) {
+    // Non-blocking peek — keeps last value if no new reading available
+    xQueuePeek(distQueue, &dist, 0);
+
     xSemaphoreTake(stateMutex, portMAX_DELAY);
     float       sAngle = stepperAngle;
     int         tilt   = servoAngleDeg;
-    float       dist   = lastDist;
     SystemState state  = systemState;
     xSemaphoreGive(stateMutex);
 
+    // Capture lock coordinates once on SCANNING -> LOCKED transition
     if (state == LOCKED && !coordsCaptured) {
       lockedStepAngle  = sAngle;
       lockedServoAngle = tilt;
@@ -455,25 +308,24 @@ void lcdTask(void *pvParameters) {
     }
 
     if (state == ESTOP) {
-      // E-stop display
       lcd.setCursor(0, 0);
       lcd.print("!! ESTOP !!     ");
       lcd.setCursor(0, 1);
       lcd.print("Release to resume");
 
     } else if (state == SCANNING) {
-      // Row 0: H and V angles
+      // Row 0: live horizontal stepper angle and vertical servo tilt
       lcd.setCursor(0, 0);
       lcd.print("H:");
       if (sAngle >= 0) lcd.print(" ");
       lcd.print((int)sAngle);
-      lcd.print((char)223);
+      lcd.print((char)223); // Degree symbol
       lcd.print(" V:+");
       lcd.print(tilt);
       lcd.print((char)223);
       lcd.print("  ");
 
-      // Row 1: distance
+      // Row 1: live ultrasonic distance reading
       lcd.setCursor(0, 1);
       lcd.print("Dist: ");
       if (dist > 0) {
@@ -484,7 +336,7 @@ void lcdTask(void *pvParameters) {
       }
 
     } else {
-      // LOCKED
+      // LOCKED — show alert and coordinates where target was first detected
       lcd.setCursor(0, 0);
       lcd.print("** TARGET **    ");
 
@@ -503,40 +355,57 @@ void lcdTask(void *pvParameters) {
   }
 }
 
-// =====================
+// ==================== Setup ====================
+
+/**
+ * @brief Initialise all hardware, FreeRTOS primitives, timers, and tasks.
+ * @details Runs once on boot. Configures GPIO pins, LCD, servo, stepper,
+ *          buzzer PWM, hardware timers, ISRs, queues, mutex, and spawns
+ *          all FreeRTOS tasks pinned to their respective cores.
+ */
 void setup() {
   Serial.begin(115200);
 
-  pinMode(trigPin,  OUTPUT);
-  pinMode(echoPin,  INPUT);
+  // Configure ultrasonic sensor pins
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
 
-  // E-stop button — internal pullup, interrupt on both edges for press + release
+  // Configure e-stop with internal pull-up — interrupt fires on press and release
   pinMode(estopPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(estopPin), estopISR, CHANGE);
 
-  // LCD
+  // Initialise LCD on I2C pins 8 (SDA) and 9 (SCL)
   Wire.begin(8, 9);
   lcd.init();
   delay(2);
   lcd.backlight();
   lcd.clear();
 
-  // Servo
+  // Initialise servo on Timer 1 (Timer 0 reserved for buzzer ISR)
   ESP32PWM::allocateTimer(1);
   myServo.setPeriodHertz(50);
   myServo.attach(servoPin, 500, 2400);
-  myServo.write(SERVO_START_DEG);
+  myServo.write(SERVO_START_DEG); // Physical 0 = horizontal on this servo
 
-  // Stepper
+  // Initialise stepper motor
   myStepper.setSpeed(8);
   releaseStepper();
 
-  // Buzzer
+  // Initialise buzzer via PWM (ledcAttach uses Timer 2 internally)
   ledcAttach(buzzerPin, BUZZ_FREQ, BUZZ_RESOLUTION);
-  ledcWrite(buzzerPin, 0);
+  ledcWrite(buzzerPin, 0); // Start silent
 
-  // FreeRTOS primitives
-  servoQueue = xQueueCreate(8, sizeof(int));
+  // Hardware Timer 0 — buzzer toggle ISR fires every 500ms
+  // Auto-silences after BUZZ_DURATION_TICKS (2 seconds) via ISR tick counter
+  buzzTimer = timerBegin(1000000);         // 1 MHz tick resolution
+  timerAttachInterrupt(buzzTimer, &buzzTimerISR);
+  timerAlarm(buzzTimer, 500000, true, 0);  // 500ms period, auto-reload enabled
+
+  // Create inter-task communication queues
+  servoQueue = xQueueCreate(8, sizeof(int));   // Servo angle commands
+  distQueue  = xQueueCreate(1, sizeof(float)); // Latest distance (size 1 for overwrite)
+
+  // Create shared state mutex
   stateMutex = xSemaphoreCreateMutex();
 
   lcd.setCursor(0, 0);
@@ -544,23 +413,33 @@ void setup() {
   delay(1000);
   lcd.clear();
 
-  // ServoWrite on Core 0
+  // ---- Spawn FreeRTOS tasks ----
+
+  // Core 0 — sensor polling, display, servo writer, e-stop monitor
   xTaskCreatePinnedToCore(servoWriteTask, "ServoWrite", 2048, NULL, 3,
                           &servoWriteTaskHandle, 0);
-  // Scan on Core 1
+  xTaskCreatePinnedToCore(sensorTask,     "SensorTask", 4096, NULL, 3,
+                          &sensorTaskHandle,     0); // 128Hz
+  xTaskCreatePinnedToCore(lcdTask,        "LcdTask",    2048, NULL, 1,
+                          &lcdTaskHandle,        0); // Lowest priority
+  xTaskCreatePinnedToCore(estopTask,      "EStopTask",  2048, NULL, 4,
+                          &estopTaskHandle,      0); // 50Hz, highest priority
+
+  // Core 1 — motor sweep isolated to prevent conflicts with Core 0 tasks
   xTaskCreatePinnedToCore(scanTask,       "ScanTask",   8192, NULL, 2,
                           &scanTaskHandle,       1);
-  // Sensor + LCD + EStop on Core 0
-  xTaskCreatePinnedToCore(sensorTask,     "SensorTask", 2048, NULL, 3,
-                          &sensorTaskHandle,     0);
-  xTaskCreatePinnedToCore(lcdTask,        "LcdTask",    2048, NULL, 1,
-                          &lcdTaskHandle,        0);
-  xTaskCreatePinnedToCore(estopTask,      "EStopTask",  2048, NULL, 4,
-                          &estopTaskHandle,      0);
 
   Serial.println("Sentry online. Beginning dome sweep.");
 }
 
+// ==================== Main Loop ====================
+
+/**
+ * @brief Arduino main loop — intentionally idle.
+ * @details All system behaviour is managed by FreeRTOS tasks spawned in
+ *          setup(). The Arduino loop task runs at the lowest FreeRTOS
+ *          priority and yields every second to avoid consuming CPU time.
+ */
 void loop() {
   vTaskDelay(pdMS_TO_TICKS(1000));
 }
