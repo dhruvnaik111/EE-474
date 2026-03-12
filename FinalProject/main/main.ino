@@ -1,7 +1,7 @@
 /**
  * @file main.ino
  * @authors Dhruv Naik, Ethan Le
- * @date 03/08/2026
+ * @date 03/12/2026
  * @brief Entry point and FreeRTOS task implementations for the 2-axis
  *        ultrasonic sentry system.
  * @details Initialises all hardware peripherals, FreeRTOS primitives, hardware
@@ -23,8 +23,9 @@
  *            Core 1 — scanTask (P2)
  *
  *          Timer summary:
- *            Timer 0 — buzzTimerISR fires every 500ms for buzzer toggle
- *            Timer 1 — allocated to ESP32PWM for servo PWM signal
+ *            Hardware Timer           — buzzTimerISR fires every 500ms for buzzer toggle
+ *            Hardware Timer 1         — explicitly allocated to ESP32PWM for servo PWM signal
+ *            LEDC Peripheral Timer    — internally allocated by ledcAttach for the buzzer tone
  */
 
 // ==================== Includes ====================
