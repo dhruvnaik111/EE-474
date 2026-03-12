@@ -18,14 +18,14 @@
  *            - E-stop button (GPIO 6):   interrupt-driven emergency halt
  *
  *          FreeRTOS task summary:
- *            Core 0 — servoWriteTask (P3), sensorTask (P3, 128Hz),
+ *            Core 0 - servoWriteTask (P3), sensorTask (P3, 128Hz),
  *                     lcdTask (P1), estopTask (P4, 50Hz)
- *            Core 1 — scanTask (P2)
+ *            Core 1 - scanTask (P2)
  *
  *          Timer summary:
- *            Hardware Timer           — buzzTimerISR fires every 500ms for buzzer toggle
- *            Hardware Timer 1         — explicitly allocated to ESP32PWM for servo PWM signal
- *            LEDC Peripheral Timer    — internally allocated by ledcAttach for the buzzer tone
+ *            Hardware Timer 0         - buzzTimerISR fires every 500ms for buzzer toggle
+ *            Hardware Timer 1         - explicitly allocated to ESP32PWM for servo PWM signal
+ *            LEDC Peripheral Timer    - internally allocated by ledcAttach for the buzzer tone
  */
 
 // ==================== Includes ====================
@@ -78,7 +78,7 @@ void sensorTask(void *pvParameters) {
     if (systemState != ESTOP) {
       float dist = getStableDistance();
 
-      // Overwrite queue — LCD always gets freshest reading, no blocking
+      // Overwrite queue to ensure LCD always gets newest reading, no blocking
       xQueueOverwrite(distQueue, &dist);
 
       xSemaphoreTake(stateMutex, portMAX_DELAY);
@@ -103,7 +103,7 @@ void sensorTask(void *pvParameters) {
       xSemaphoreGive(stateMutex);
 
     } else {
-      // E-stopped — push invalid reading so LCD shows --
+      // E-stopped push invalid reading so LCD shows
       float invalid = -1.0;
       xQueueOverwrite(distQueue, &invalid);
     }
@@ -135,7 +135,7 @@ void estopTask(void *pvParameters) {
 
       xSemaphoreTake(stateMutex, portMAX_DELAY);
       systemState   = ESTOP;
-      // stepperAngle intentionally NOT reset — horizontal position preserved
+      // stepperAngle intentionally NOT reset (horizontal position preserved)
       servoAngleDeg = SERVO_START_DEG;
       xSemaphoreGive(stateMutex);
 
@@ -159,11 +159,11 @@ void estopTask(void *pvParameters) {
 
       xSemaphoreTake(stateMutex, portMAX_DELAY);
       systemState   = SCANNING;
-      // stepperAngle unchanged — motor resumes from physical position
+      // stepperAngle unchanged, motor resumes from physical position
       servoAngleDeg = SERVO_START_DEG;
       xSemaphoreGive(stateMutex);
 
-      // Confirm servo at home — send again to be safe
+      // Confirm servo at home, send again to be safe
       int homeAngle = SERVO_START_DEG + SERVO_PHYSICAL_OFFSET;
       xQueueSend(servoQueue, &homeAngle, portMAX_DELAY);
       ledcWrite(buzzerPin, 0);
@@ -345,7 +345,7 @@ void lcdTask(void *pvParameters) {
       }
 
     } else {
-      // LOCKED — show alert and coordinates where target was first detected
+      // LOCKED show alert and coordinates where target was first detected
       lcd.setCursor(0, 0);
       lcd.print("** TARGET **    ");
 
@@ -378,7 +378,7 @@ void setup() {
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
 
-  // Configure e-stop with internal pull-up — interrupt fires on press and release
+  // Configure e-stop with internal pull-up, interrupt fires on press and release
   pinMode(estopPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(estopPin), estopISR, CHANGE);
 
@@ -389,7 +389,7 @@ void setup() {
   lcd.backlight();
   lcd.clear();
 
-  // Initialise servo on Timer 1 (Timer 0 reserved for buzzer ISR)
+  // Initialise servo on Timer 1 (Timer 0 used for buzzer ISR)
   ESP32PWM::allocateTimer(1);
   myServo.setPeriodHertz(50);
   myServo.attach(servoPin, 500, 2400);
@@ -404,7 +404,7 @@ void setup() {
   ledcAttach(buzzerPin, BUZZ_FREQ, BUZZ_RESOLUTION);
   ledcWrite(buzzerPin, 0); // Start silent
 
-  // Hardware Timer 0 — buzzer toggle ISR fires every 500ms
+  // Hardware Timer 0 handles buzzer toggle ISR fires every 500ms
   // Auto-silences after BUZZ_DURATION_TICKS (2 seconds) via ISR tick counter
   buzzTimer = timerBegin(1000000);         // 1 MHz tick resolution
   timerAttachInterrupt(buzzTimer, &buzzTimerISR);
@@ -444,7 +444,7 @@ void setup() {
 // ==================== Main Loop ====================
 
 /**
- * @brief Arduino main loop — intentionally idle.
+ * @brief Arduino main loop, intentionally idle.
  * @details All system behaviour is managed by FreeRTOS tasks spawned in
  *          setup(). The Arduino loop task runs at the lowest FreeRTOS
  *          priority and yields every second to avoid consuming CPU time.

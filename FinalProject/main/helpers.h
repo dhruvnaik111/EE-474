@@ -127,7 +127,7 @@ void IRAM_ATTR buzzTimerISR() {
  * @details Fires on both RISING and FALLING edges (CHANGE mode) to catch
  *          both press and release events. Time-based debouncing discards
  *          events within DEBOUNCE_MS of the last valid event. Only sets or
- *          clears the estopActive flag — no heavy work performed in ISR.
+ *          clears the estopActive flag so no heavy work is performed in ISR.
  */
 void IRAM_ATTR estopISR() {
   unsigned long now = millis();
