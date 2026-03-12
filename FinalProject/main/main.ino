@@ -37,8 +37,14 @@ TaskHandle_t lcdTaskHandle        = NULL;
 TaskHandle_t servoWriteTaskHandle = NULL;
 TaskHandle_t estopTaskHandle      = NULL;
 
-// ==================== FreeRTOS Task Implementations ====================
+// ==================== Function Prototypes ====================
+void servoWriteTask(void *pvParameters);
+void sensorTask(void *pvParameters);
+void estopTask(void *pvParameters);
+void scanTask(void *pvParameters);
+void lcdTask(void *pvParameters);
 
+// ==================== FreeRTOS Task Implementations ====================
 /**
  * @brief Receives servo angle commands from servoQueue and writes to servo.
  * @details Core 0, Priority 3. Sole owner of myServo.write() to avoid
@@ -48,6 +54,7 @@ TaskHandle_t estopTaskHandle      = NULL;
  */
 void servoWriteTask(void *pvParameters) {
   int angle;
+
   while (true) {
     if (xQueueReceive(servoQueue, &angle, portMAX_DELAY)) {
       myServo.write(angle);
@@ -79,6 +86,7 @@ void sensorTask(void *pvParameters) {
         systemState   = LOCKED;
         buzzEnabled   = true;   // Trigger timer-driven 2-second buzzer
         buzzTickCount = 0;
+
         Serial.print("[SENSOR] TARGET ACQUIRED at ");
         Serial.print(dist, 1);
         Serial.println("cm — LOCKED.");
@@ -356,7 +364,6 @@ void lcdTask(void *pvParameters) {
 }
 
 // ==================== Setup ====================
-
 /**
  * @brief Initialise all hardware, FreeRTOS primitives, timers, and tasks.
  * @details Runs once on boot. Configures GPIO pins, LCD, servo, stepper,
@@ -385,6 +392,7 @@ void setup() {
   ESP32PWM::allocateTimer(1);
   myServo.setPeriodHertz(50);
   myServo.attach(servoPin, 500, 2400);
+
   myServo.write(SERVO_START_DEG); // Physical 0 = horizontal on this servo
 
   // Initialise stepper motor

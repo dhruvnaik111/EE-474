@@ -96,7 +96,6 @@ Stepper           myStepper(2048, IN1, IN3, IN2, IN4); ///< Stepper motor object
 LiquidCrystal_I2C lcd(0x27, 16, 2);                ///< 16x2 I2C LCD object
 
 // ==================== ISR Implementations ====================
-
 /**
  * @brief Hardware timer ISR that drives the buzzer on/off pattern.
  * @details Fires every 500ms via Timer 0. Toggles the buzzer PWM output while
@@ -138,7 +137,6 @@ void IRAM_ATTR estopISR() {
 }
 
 // ==================== Servo Helpers ====================
-
 /**
  * @brief Write a logical servo angle, applying the physical offset.
  * @details Posts the physical angle to servoQueue. The servoWriteTask on
@@ -152,7 +150,6 @@ void servoWrite(int logicalDeg) {
 }
 
 // ==================== Stepper Helpers ====================
-
 /**
  * @brief Release all stepper motor coils to prevent heat buildup.
  * @details Sets IN1 through IN4 LOW. Should be called after any stepper
@@ -234,7 +231,6 @@ void stepperToCenter() {
 }
 
 // ==================== Ultrasonic Helpers ====================
-
 /**
  * @brief Take a single ultrasonic distance reading.
  * @details Sends a 10us trigger pulse on trigPin and measures the echo
