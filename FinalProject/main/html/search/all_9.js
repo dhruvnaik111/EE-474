@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['scantask_0',['scanTask',['../main_8ino.html#aae4c13a60334367b597f9d875896b081',1,'main.ino']]],
+  ['sensor_5ftask_5fhz_1',['SENSOR_TASK_HZ',['../helpers_8h.html#aec7f8836ad4c9b5f59a6961adcf8e681',1,'helpers.h']]],
+  ['sensor_5ftask_5fms_2',['SENSOR_TASK_MS',['../helpers_8h.html#aaa3e104a00c54d55da2a3add6a02f20a',1,'helpers.h']]],
+  ['sensortask_3',['sensorTask',['../main_8ino.html#a217451a0ec75f826e5a2933c3268c7c2',1,'main.ino']]],
+  ['servo_5fmax_5fdeg_4',['SERVO_MAX_DEG',['../helpers_8h.html#a4d5ff13bfefa69acc5c50b941710f796',1,'helpers.h']]],
+  ['servo_5fmin_5fdeg_5',['SERVO_MIN_DEG',['../helpers_8h.html#a0ef01cd95e062dfdbe20b124dc3c7089',1,'helpers.h']]],
+  ['servo_5fphysical_5foffset_6',['SERVO_PHYSICAL_OFFSET',['../helpers_8h.html#a5b2ac5c7e090b14e302b4fa7dc784d20',1,'helpers.h']]],
+  ['servo_5fsettle_5fms_7',['SERVO_SETTLE_MS',['../helpers_8h.html#a9fab1593eaad6eda5bda987f3de5f0ad',1,'helpers.h']]],
+  ['servo_5fstart_5fdeg_8',['SERVO_START_DEG',['../helpers_8h.html#ad5b3f2edf09eacbc860e7c2200ba7937',1,'helpers.h']]],
+  ['servo_5fstep_5fdeg_9',['SERVO_STEP_DEG',['../helpers_8h.html#a3a036039969fe1374ce619c5be838d61',1,'helpers.h']]],
+  ['servoangledeg_10',['servoAngleDeg',['../helpers_8h.html#aa80ea219ca646774758b39bc079884cc',1,'helpers.h']]],
+  ['servopin_11',['servoPin',['../helpers_8h.html#ab6a80d0d11018361daa0566b1e844bd9',1,'helpers.h']]],
+  ['servoqueue_12',['servoQueue',['../helpers_8h.html#ad45f8f46b41b067753af004c4334bf4b',1,'helpers.h']]],
+  ['servowrite_13',['servoWrite',['../helpers_8h.html#a806221e1d0bf0419863af5c08ca5b943',1,'helpers.h']]],
+  ['servowritetask_14',['servoWriteTask',['../main_8ino.html#a534d1db2eb4ddac565e99ff68b7a8c1c',1,'main.ino']]],
+  ['setup_15',['setup',['../main_8ino.html#a4fc01d736fe50cf5b977f755b675f11d',1,'main.ino']]],
+  ['statemutex_16',['stateMutex',['../helpers_8h.html#a95ca711c8457e966fa52b8c740911e67',1,'helpers.h']]],
+  ['step_5fdelay_5fms_17',['STEP_DELAY_MS',['../helpers_8h.html#a6b520b5cf62835739033e5015bf34165',1,'helpers.h']]],
+  ['stepdegrees_18',['stepDegrees',['../helpers_8h.html#a8511301b4a3f7fd65a1024ba62525b70',1,'helpers.h']]],
+  ['stepper_5fmax_5fdeg_19',['STEPPER_MAX_DEG',['../helpers_8h.html#aa0784c6c12f36d361dc80ea12459e16f',1,'helpers.h']]],
+  ['stepperangle_20',['stepperAngle',['../helpers_8h.html#ae409c13cd00da324a7341394a4454760',1,'helpers.h']]],
+  ['steppertocenter_21',['stepperToCenter',['../helpers_8h.html#a68e3fbe6b2e37a4c33b0f066f0b43b47',1,'helpers.h']]],
+  ['steps_5fper_5fdeg_22',['STEPS_PER_DEG',['../helpers_8h.html#ab23d1e3ff135a6cc47ed17f00690159b',1,'helpers.h']]],
+  ['systemstate_23',['SystemState',['../helpers_8h.html#aa51313be2faacb739a18fdeecefbac75',1,'helpers.h']]],
+  ['systemstate_24',['systemState',['../helpers_8h.html#a5aa8880a15c3f2d5388c536a5c9b324b',1,'helpers.h']]]
+];

@@ -1,0 +1,169 @@
+\doxysection{main.\+ino File Reference}
+\hypertarget{main_8ino}{}\label{main_8ino}\index{main.ino@{main.ino}}
+
+
+Entry point and Free\+RTOS task implementations for the 2-\/axis ultrasonic sentry system.  
+
+
+{\ttfamily \+\#include "{}helpers.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \doxymbox{\hyperlink{main_8ino_a534d1db2eb4ddac565e99ff68b7a8c1c}{servo\+Write\+Task}} (void \texorpdfstring{$\ast$}{*}pv\+Parameters)
+\begin{DoxyCompactList}\small\item\em Receives servo angle commands from servo\+Queue and writes to servo. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{main_8ino_a217451a0ec75f826e5a2933c3268c7c2}{sensor\+Task}} (void \texorpdfstring{$\ast$}{*}pv\+Parameters)
+\begin{DoxyCompactList}\small\item\em Polls the ultrasonic sensor at 128Hz and manages SCANNING/\+\+LOCKED state. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{main_8ino_a0c8abd62cee8b8088efab13aa24c8aef}{estop\+Task}} (void \texorpdfstring{$\ast$}{*}pv\+Parameters)
+\begin{DoxyCompactList}\small\item\em Monitors the e-\/stop button at 50Hz and manages the ESTOP state. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{main_8ino_aae4c13a60334367b597f9d875896b081}{scan\+Task}} (void \texorpdfstring{$\ast$}{*}pv\+Parameters)
+\begin{DoxyCompactList}\small\item\em Performs the boustrophedon 3D dome sweep using stepper and servo. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{main_8ino_a398c1a231ab19927257d1ab4b7776678}{lcd\+Task}} (void \texorpdfstring{$\ast$}{*}pv\+Parameters)
+\begin{DoxyCompactList}\small\item\em Updates the LCD display at 200ms intervals. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{main_8ino_a4fc01d736fe50cf5b977f755b675f11d}{setup}} ()
+\begin{DoxyCompactList}\small\item\em Initialise all hardware, Free\+RTOS primitives, timers, and tasks. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{main_8ino_afe461d27b9c48d5921c00d521181f12f}{loop}} ()
+\begin{DoxyCompactList}\small\item\em Arduino main loop — intentionally idle. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{main_8ino_a201e966c93451311ff03d8422a85fdf0}\label{main_8ino_a201e966c93451311ff03d8422a85fdf0} 
+Task\+Handle\+\_\+t {\bfseries scan\+Task\+Handle} = NULL
+\item 
+\Hypertarget{main_8ino_a95a80735083a5a0764fa9dc60cd5b0ae}\label{main_8ino_a95a80735083a5a0764fa9dc60cd5b0ae} 
+Task\+Handle\+\_\+t {\bfseries sensor\+Task\+Handle} = NULL
+\item 
+\Hypertarget{main_8ino_a824a4cd8786288b0b2e200e3f8ee7960}\label{main_8ino_a824a4cd8786288b0b2e200e3f8ee7960} 
+Task\+Handle\+\_\+t {\bfseries lcd\+Task\+Handle} = NULL
+\item 
+\Hypertarget{main_8ino_ac7958cb8a68613d8fda6d3687c2026cf}\label{main_8ino_ac7958cb8a68613d8fda6d3687c2026cf} 
+Task\+Handle\+\_\+t {\bfseries servo\+Write\+Task\+Handle} = NULL
+\item 
+\Hypertarget{main_8ino_a7d88a8e7546493be19470405db4551dc}\label{main_8ino_a7d88a8e7546493be19470405db4551dc} 
+Task\+Handle\+\_\+t {\bfseries estop\+Task\+Handle} = NULL
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Entry point and Free\+RTOS task implementations for the 2-\/axis ultrasonic sentry system. 
+
+\begin{DoxyAuthor}{Authors}
+Dhruv Naik, Ethan Le 
+\end{DoxyAuthor}
+\begin{DoxyDate}{Date}
+03/\+12/\+2026
+\end{DoxyDate}
+Initialises all hardware peripherals, Free\+RTOS primitives, hardware timers, and spawns all tasks across both ESP32-\/\+S3 cores. All hardware helper functions, ISRs, pin definitions, macros, and shared state are defined in \doxylink{helpers_8h}{helpers.\+h}.
+
+Hardware summary:\+
+\begin{DoxyItemize}
+\item Stepper motor (28BYJ-\/48):\+ horizontal sweep ±90 degrees
+\item Servo motor (SG90):\+ vertical tilt 0-\/70 degrees (0 = horizontal)
+\item HC-\/\+SR04 ultrasonic:\+ target detection within 30cm
+\item Liquid\+Crystal I2C LCD:\+ 16x2 status display
+\item Active buzzer (GPIO 1):\+ PWM alert, auto-\/off after 2 seconds
+\item E-\/stop button (GPIO 6):\+ interrupt-\/driven emergency halt
+\end{DoxyItemize}
+
+Free\+RTOS task summary:\+ Core 0 — servo\+Write\+Task (P3), sensor\+Task (P3, 128Hz), lcd\+Task (P1), estop\+Task (P4, 50Hz) Core 1 — scan\+Task (P2)
+
+Timer summary:\+ Hardware Timer — buzz\+Timer\+ISR fires every 500ms for buzzer toggle Hardware Timer 1 — explicitly allocated to ESP32\+PWM for servo PWM signal LEDC Peripheral Timer — internally allocated by ledc\+Attach for the buzzer tone 
+
+\label{doc-func-members}
+\Hypertarget{main_8ino_doc-func-members}
+\doxysubsection{Function Documentation}
+\Hypertarget{main_8ino_a0c8abd62cee8b8088efab13aa24c8aef}\index{main.ino@{main.ino}!estopTask@{estopTask}}
+\index{estopTask@{estopTask}!main.ino@{main.ino}}
+\doxysubsubsection{\texorpdfstring{estopTask()}{estopTask()}}
+{\footnotesize\ttfamily \label{main_8ino_a0c8abd62cee8b8088efab13aa24c8aef} 
+void estop\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{pv\+Parameters}{}\end{DoxyParamCaption})}
+
+
+
+Monitors the e-\/stop button at 50Hz and manages the ESTOP state. 
+
+Core 0, Priority 4 (highest). Uses v\+Task\+Delay\+Until for precise 50Hz timing. On press:\+ transitions to ESTOP, homes servo to horizontal, releases stepper coils, and silences the buzzer. The stepper horizontal angle is intentionally preserved so the sweep can resume from the correct physical position on release. On release:\+ transitions back to SCANNING. 
+\begin{DoxyParams}{Parameters}
+{\em pv\+Parameters} & Unused Free\+RTOS task parameter. \\
+\hline
+\end{DoxyParams}
+\Hypertarget{main_8ino_a398c1a231ab19927257d1ab4b7776678}\index{main.ino@{main.ino}!lcdTask@{lcdTask}}
+\index{lcdTask@{lcdTask}!main.ino@{main.ino}}
+\doxysubsubsection{\texorpdfstring{lcdTask()}{lcdTask()}}
+{\footnotesize\ttfamily \label{main_8ino_a398c1a231ab19927257d1ab4b7776678} 
+void lcd\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{pv\+Parameters}{}\end{DoxyParamCaption})}
+
+
+
+Updates the LCD display at 200ms intervals. 
+
+Core 0, Priority 1 (lowest). Reads the latest distance from dist\+Queue using a non-\/blocking peek and reads system state from shared variables protected by state\+Mutex. Displays three different layouts depending on state:\+ SCANNING shows live H/\+V angles and distance, LOCKED shows a target alert with the coordinates where the target was first detected, ESTOP shows a halt message. 
+\begin{DoxyParams}{Parameters}
+{\em pv\+Parameters} & Unused Free\+RTOS task parameter. \\
+\hline
+\end{DoxyParams}
+\Hypertarget{main_8ino_afe461d27b9c48d5921c00d521181f12f}\index{main.ino@{main.ino}!loop@{loop}}
+\index{loop@{loop}!main.ino@{main.ino}}
+\doxysubsubsection{\texorpdfstring{loop()}{loop()}}
+{\footnotesize\ttfamily \label{main_8ino_afe461d27b9c48d5921c00d521181f12f} 
+void loop (\begin{DoxyParamCaption}{}{}\end{DoxyParamCaption})}
+
+
+
+Arduino main loop — intentionally idle. 
+
+All system behaviour is managed by Free\+RTOS tasks spawned in \doxylink{main_8ino_a4fc01d736fe50cf5b977f755b675f11d}{setup()}. The Arduino loop task runs at the lowest Free\+RTOS priority and yields every second to avoid consuming CPU time. \Hypertarget{main_8ino_aae4c13a60334367b597f9d875896b081}\index{main.ino@{main.ino}!scanTask@{scanTask}}
+\index{scanTask@{scanTask}!main.ino@{main.ino}}
+\doxysubsubsection{\texorpdfstring{scanTask()}{scanTask()}}
+{\footnotesize\ttfamily \label{main_8ino_aae4c13a60334367b597f9d875896b081} 
+void scan\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{pv\+Parameters}{}\end{DoxyParamCaption})}
+
+
+
+Performs the boustrophedon 3D dome sweep using stepper and servo. 
+
+Core 1, Priority 2. Sweeps the servo vertically row by row while the stepper scans the full horizontal arc at each row, alternating direction each row (snake/\+boustrophedon pattern) to avoid returning to center between rows. Pauses immediately on LOCKED or ESTOP. Resumes from the last saved vertical row after LOCKED clears. Resets vertical sweep to the start after ESTOP clears, while preserving the horizontal stepper position throughout. 
+\begin{DoxyParams}{Parameters}
+{\em pv\+Parameters} & Unused Free\+RTOS task parameter. \\
+\hline
+\end{DoxyParams}
+\Hypertarget{main_8ino_a217451a0ec75f826e5a2933c3268c7c2}\index{main.ino@{main.ino}!sensorTask@{sensorTask}}
+\index{sensorTask@{sensorTask}!main.ino@{main.ino}}
+\doxysubsubsection{\texorpdfstring{sensorTask()}{sensorTask()}}
+{\footnotesize\ttfamily \label{main_8ino_a217451a0ec75f826e5a2933c3268c7c2} 
+void sensor\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{pv\+Parameters}{}\end{DoxyParamCaption})}
+
+
+
+Polls the ultrasonic sensor at 128Hz and manages SCANNING/\+\+LOCKED state. 
+
+Core 0, Priority 3. Uses v\+Task\+Delay\+Until for precise 128Hz timing. Posts distance readings to dist\+Queue via x\+Queue\+Overwrite so lcd\+Task always receives the freshest value without blocking. Sets buzz\+Enabled when a target is acquired to trigger the hardware timer buzzer. 
+\begin{DoxyParams}{Parameters}
+{\em pv\+Parameters} & Unused Free\+RTOS task parameter. \\
+\hline
+\end{DoxyParams}
+\Hypertarget{main_8ino_a534d1db2eb4ddac565e99ff68b7a8c1c}\index{main.ino@{main.ino}!servoWriteTask@{servoWriteTask}}
+\index{servoWriteTask@{servoWriteTask}!main.ino@{main.ino}}
+\doxysubsubsection{\texorpdfstring{servoWriteTask()}{servoWriteTask()}}
+{\footnotesize\ttfamily \label{main_8ino_a534d1db2eb4ddac565e99ff68b7a8c1c} 
+void servo\+Write\+Task (\begin{DoxyParamCaption}\item[{void \texorpdfstring{$\ast$}{*}}]{pv\+Parameters}{}\end{DoxyParamCaption})}
+
+
+
+Receives servo angle commands from servo\+Queue and writes to servo. 
+
+Core 0, Priority 3. Sole owner of my\+Servo.\+write() to avoid ESP32\+Servo cross-\/core threading issues. Blocks indefinitely on queue receive, consuming no CPU while idle. 
+\begin{DoxyParams}{Parameters}
+{\em pv\+Parameters} & Unused Free\+RTOS task parameter. \\
+\hline
+\end{DoxyParams}
+\Hypertarget{main_8ino_a4fc01d736fe50cf5b977f755b675f11d}\index{main.ino@{main.ino}!setup@{setup}}
+\index{setup@{setup}!main.ino@{main.ino}}
+\doxysubsubsection{\texorpdfstring{setup()}{setup()}}
+{\footnotesize\ttfamily \label{main_8ino_a4fc01d736fe50cf5b977f755b675f11d} 
+void setup (\begin{DoxyParamCaption}{}{}\end{DoxyParamCaption})}
+
+
+
+Initialise all hardware, Free\+RTOS primitives, timers, and tasks. 
+
+Runs once on boot. Configures GPIO pins, LCD, servo, stepper, buzzer PWM, hardware timers, ISRs, queues, mutex, and spawns all Free\+RTOS tasks pinned to their respective cores. 

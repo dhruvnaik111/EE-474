@@ -1,0 +1,304 @@
+\doxysection{helpers.\+h File Reference}
+\hypertarget{helpers_8h}{}\label{helpers_8h}\index{helpers.h@{helpers.h}}
+
+
+Hardware helper functions, ISRs, pin definitions, configuration macros, and shared state declarations for the 2-\/axis ultrasonic sentry system.  
+
+
+{\ttfamily \+\#include $<$Arduino.\+h$>$}\newline
+{\ttfamily \+\#include $<$ESP32\+Servo.\+h$>$}\newline
+{\ttfamily \+\#include $<$Stepper.\+h$>$}\newline
+{\ttfamily \+\#include $<$Liquid\+Crystal\+\_\+\+I2\+C.\+h$>$}\newline
+\doxysubsubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{helpers_8h_ab23d1e3ff135a6cc47ed17f00690159b}\label{helpers_8h_ab23d1e3ff135a6cc47ed17f00690159b} 
+\+\#define {\bfseries STEPS\+\_\+\+PER\+\_\+\+DEG}~(2048.\+0 /\+ 360.\+0)
+\begin{DoxyCompactList}\small\item\em Steps per degree for 28BYJ-\/48. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a6b520b5cf62835739033e5015bf34165}\label{helpers_8h_a6b520b5cf62835739033e5015bf34165} 
+\+\#define {\bfseries STEP\+\_\+\+DELAY\+\_\+\+MS}~4
+\begin{DoxyCompactList}\small\item\em Delay between each step in ms. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_aa0784c6c12f36d361dc80ea12459e16f}\label{helpers_8h_aa0784c6c12f36d361dc80ea12459e16f} 
+\+\#define {\bfseries STEPPER\+\_\+\+MAX\+\_\+\+DEG}~90.\+0
+\begin{DoxyCompactList}\small\item\em Max horizontal sweep each side of center. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a5b2ac5c7e090b14e302b4fa7dc784d20}\label{helpers_8h_a5b2ac5c7e090b14e302b4fa7dc784d20} 
+\+\#define {\bfseries SERVO\+\_\+\+PHYSICAL\+\_\+\+OFFSET}~0
+\begin{DoxyCompactList}\small\item\em Physical 0 degrees on this servo is horizontal — no offset required. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_ad5b3f2edf09eacbc860e7c2200ba7937}\label{helpers_8h_ad5b3f2edf09eacbc860e7c2200ba7937} 
+\+\#define {\bfseries SERVO\+\_\+\+START\+\_\+\+DEG}~0
+\begin{DoxyCompactList}\small\item\em Logical horizontal start position. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a0ef01cd95e062dfdbe20b124dc3c7089}\label{helpers_8h_a0ef01cd95e062dfdbe20b124dc3c7089} 
+\+\#define {\bfseries SERVO\+\_\+\+MIN\+\_\+\+DEG}~0
+\begin{DoxyCompactList}\small\item\em Lowest tilt (horizontal, no downward travel). \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a4d5ff13bfefa69acc5c50b941710f796}\label{helpers_8h_a4d5ff13bfefa69acc5c50b941710f796} 
+\+\#define {\bfseries SERVO\+\_\+\+MAX\+\_\+\+DEG}~70
+\begin{DoxyCompactList}\small\item\em Highest tilt (70 degrees above horizontal). \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a3a036039969fe1374ce619c5be838d61}\label{helpers_8h_a3a036039969fe1374ce619c5be838d61} 
+\+\#define {\bfseries SERVO\+\_\+\+STEP\+\_\+\+DEG}~10
+\begin{DoxyCompactList}\small\item\em Degrees between each vertical sweep row. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a9fab1593eaad6eda5bda987f3de5f0ad}\label{helpers_8h_a9fab1593eaad6eda5bda987f3de5f0ad} 
+\+\#define {\bfseries SERVO\+\_\+\+SETTLE\+\_\+\+MS}~300
+\begin{DoxyCompactList}\small\item\em ms to wait for servo to physically reach position \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a694714f38d7a70639fd8c604aeecc221}\label{helpers_8h_a694714f38d7a70639fd8c604aeecc221} 
+\+\#define {\bfseries BUZZ\+\_\+\+FREQ}~2000
+\begin{DoxyCompactList}\small\item\em Buzzer tone frequency in Hz. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a3292303d592b389066152097f33fae01}\label{helpers_8h_a3292303d592b389066152097f33fae01} 
+\+\#define {\bfseries BUZZ\+\_\+\+RESOLUTION}~8
+\begin{DoxyCompactList}\small\item\em PWM resolution in bits (0-\/255 range). \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a6b9fbf9ca2c745beea4c2e47d5a7c48d}\label{helpers_8h_a6b9fbf9ca2c745beea4c2e47d5a7c48d} 
+\+\#define {\bfseries BUZZ\+\_\+\+DUTY\+\_\+\+ON}~128
+\begin{DoxyCompactList}\small\item\em 50\% duty cycle when buzzer is active \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_ab2a84f1c59d931bf453b843b560284b8}\label{helpers_8h_ab2a84f1c59d931bf453b843b560284b8} 
+\+\#define {\bfseries BUZZ\+\_\+\+DURATION\+\_\+\+TICKS}~4
+\begin{DoxyCompactList}\small\item\em ISR firings before auto-\/off (4 x 500ms = 2s). \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a850aa7c745140eeb5090bd46257a3b57}\label{helpers_8h_a850aa7c745140eeb5090bd46257a3b57} 
+\+\#define {\bfseries TARGET\+\_\+\+DIST\+\_\+\+CM}~30.\+0
+\begin{DoxyCompactList}\small\item\em Distance threshold in cm to acquire target. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a22cfe55a7fbba3fb8a95a62572ddbd49}\label{helpers_8h_a22cfe55a7fbba3fb8a95a62572ddbd49} 
+\+\#define {\bfseries LOST\+\_\+\+DIST\+\_\+\+CM}~40.\+0
+\begin{DoxyCompactList}\small\item\em Distance threshold in cm to lose target. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_add56dedbc09f82766e39588e01978e7d}\label{helpers_8h_add56dedbc09f82766e39588e01978e7d} 
+\+\#define {\bfseries DEBOUNCE\+\_\+\+MS}~50
+\begin{DoxyCompactList}\small\item\em Minimum ms between valid button interrupt events. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_aec7f8836ad4c9b5f59a6961adcf8e681}\label{helpers_8h_aec7f8836ad4c9b5f59a6961adcf8e681} 
+\+\#define {\bfseries SENSOR\+\_\+\+TASK\+\_\+\+HZ}~128
+\begin{DoxyCompactList}\small\item\em Sensor polling rate in Hz. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_aaa3e104a00c54d55da2a3add6a02f20a}\label{helpers_8h_aaa3e104a00c54d55da2a3add6a02f20a} 
+\+\#define {\bfseries SENSOR\+\_\+\+TASK\+\_\+\+MS}~(1000 /\+ \doxymbox{\hyperlink{helpers_8h_aec7f8836ad4c9b5f59a6961adcf8e681}{SENSOR\+\_\+\+TASK\+\_\+\+HZ}})
+\begin{DoxyCompactList}\small\item\em Period in ms (\texorpdfstring{$\sim$}{\string~}8ms). \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_ad5ec5b51433761d87fbe86520ab7fdc2}\label{helpers_8h_ad5ec5b51433761d87fbe86520ab7fdc2} 
+\+\#define {\bfseries ESTOP\+\_\+\+TASK\+\_\+\+HZ}~50
+\begin{DoxyCompactList}\small\item\em E-\/stop polling rate in Hz. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a7f4e5e1fccbb2c1b890e91829bb96215}\label{helpers_8h_a7f4e5e1fccbb2c1b890e91829bb96215} 
+\+\#define {\bfseries ESTOP\+\_\+\+TASK\+\_\+\+MS}~(1000 /\+ \doxymbox{\hyperlink{helpers_8h_ad5ec5b51433761d87fbe86520ab7fdc2}{ESTOP\+\_\+\+TASK\+\_\+\+HZ}})
+\begin{DoxyCompactList}\small\item\em Period in ms (20ms). \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Enumerations}
+\begin{DoxyCompactItemize}
+\item 
+enum \doxymbox{\hyperlink{helpers_8h_aa51313be2faacb739a18fdeecefbac75}{System\+State}} \{ {\bfseries SCANNING}
+, {\bfseries LOCKED}
+, {\bfseries ESTOP}
+ \}
+\begin{DoxyCompactList}\small\item\em Represents the three operating modes of the sentry system. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{helpers_8h_a408dab96351b57ab9e9338bfc40ae75a}\label{helpers_8h_a408dab96351b57ab9e9338bfc40ae75a} 
+Stepper {\bfseries my\+Stepper} (2048, \doxymbox{\hyperlink{helpers_8h_a0486a9bf56d6a6492727a781ab493a36}{IN1}}, \doxymbox{\hyperlink{helpers_8h_a9c4c3370611bb0a86016b45514938540}{IN3}}, \doxymbox{\hyperlink{helpers_8h_a6b2bd4ae2c057b356d5ba7ab23cb5a86}{IN2}}, \doxymbox{\hyperlink{helpers_8h_a356e66351ea43531a7f68e081fc1bbbf}{IN4}})
+\begin{DoxyCompactList}\small\item\em Stepper motor object. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_ae084e1bc8ccb35ea289ba0ca4972ea6d}\label{helpers_8h_ae084e1bc8ccb35ea289ba0ca4972ea6d} 
+Liquid\+Crystal\+\_\+\+I2C {\bfseries lcd} (0x27, 16, 2)
+\begin{DoxyCompactList}\small\item\em 16x2 I2C LCD object \end{DoxyCompactList}\item 
+void IRAM\+\_\+\+ATTR \doxymbox{\hyperlink{helpers_8h_a63fbe5477d26e00893cbd045a9da6fb3}{buzz\+Timer\+ISR}} ()
+\begin{DoxyCompactList}\small\item\em Hardware timer ISR that drives the buzzer on/\+off pattern. \end{DoxyCompactList}\item 
+void IRAM\+\_\+\+ATTR \doxymbox{\hyperlink{helpers_8h_a2ea5ddb6d909f76d53acf18a00d21982}{estop\+ISR}} ()
+\begin{DoxyCompactList}\small\item\em GPIO interrupt handler for the emergency stop button. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{helpers_8h_a806221e1d0bf0419863af5c08ca5b943}{servo\+Write}} (int logical\+Deg)
+\begin{DoxyCompactList}\small\item\em Write a logical servo angle, applying the physical offset. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{helpers_8h_a04fb8c41269fb4c8cc7d72acf1a29f84}{release\+Stepper}} ()
+\begin{DoxyCompactList}\small\item\em Release all stepper motor coils to prevent heat buildup. \end{DoxyCompactList}\item 
+bool \doxymbox{\hyperlink{helpers_8h_a8511301b4a3f7fd65a1024ba62525b70}{step\+Degrees}} (float degrees)
+\begin{DoxyCompactList}\small\item\em Move the stepper motor by a given number of degrees. \end{DoxyCompactList}\item 
+void \doxymbox{\hyperlink{helpers_8h_a68e3fbe6b2e37a4c33b0f066f0b43b47}{stepper\+To\+Center}} ()
+\begin{DoxyCompactList}\small\item\em Drive the stepper motor back to 0 degrees (center position). \end{DoxyCompactList}\item 
+float \doxymbox{\hyperlink{helpers_8h_a5c185fa137f4802d9574ff866f1d90bd}{get\+Distance}} ()
+\begin{DoxyCompactList}\small\item\em Take a single ultrasonic distance reading. \end{DoxyCompactList}\item 
+float \doxymbox{\hyperlink{helpers_8h_aa9293ac32d86cea57e148ea4b265954c}{get\+Stable\+Distance}} ()
+\begin{DoxyCompactList}\small\item\em Take an averaged ultrasonic distance reading for stability. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{helpers_8h_ab6a80d0d11018361daa0566b1e844bd9}\label{helpers_8h_ab6a80d0d11018361daa0566b1e844bd9} 
+const int {\bfseries servo\+Pin} = 13
+\begin{DoxyCompactList}\small\item\em Servo signal pin. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a0486a9bf56d6a6492727a781ab493a36}\label{helpers_8h_a0486a9bf56d6a6492727a781ab493a36} 
+const int {\bfseries IN1} = 19
+\begin{DoxyCompactList}\small\item\em Stepper coil 1. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a6b2bd4ae2c057b356d5ba7ab23cb5a86}\label{helpers_8h_a6b2bd4ae2c057b356d5ba7ab23cb5a86} 
+const int {\bfseries IN2} = 18
+\begin{DoxyCompactList}\small\item\em Stepper coil 2. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a9c4c3370611bb0a86016b45514938540}\label{helpers_8h_a9c4c3370611bb0a86016b45514938540} 
+const int {\bfseries IN3} = 5
+\begin{DoxyCompactList}\small\item\em Stepper coil 3. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a356e66351ea43531a7f68e081fc1bbbf}\label{helpers_8h_a356e66351ea43531a7f68e081fc1bbbf} 
+const int {\bfseries IN4} = 17
+\begin{DoxyCompactList}\small\item\em Stepper coil 4. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a6ff4f36212df4d5fa0cd6ef1247d280a}\label{helpers_8h_a6ff4f36212df4d5fa0cd6ef1247d280a} 
+const int {\bfseries trig\+Pin} = 4
+\begin{DoxyCompactList}\small\item\em HC-\/\+SR04 trigger pin. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_afdad0216184afab1698374208a9a260d}\label{helpers_8h_afdad0216184afab1698374208a9a260d} 
+const int {\bfseries echo\+Pin} = 2
+\begin{DoxyCompactList}\small\item\em HC-\/\+SR04 echo pin. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a988a608b186de34e793324aee3ec73ee}\label{helpers_8h_a988a608b186de34e793324aee3ec73ee} 
+const int {\bfseries buzzer\+Pin} = 1
+\begin{DoxyCompactList}\small\item\em Active buzzer PWM pin. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a683375cb4aa6826be6a881ab8317502e}\label{helpers_8h_a683375cb4aa6826be6a881ab8317502e} 
+const int {\bfseries estop\+Pin} = 6
+\begin{DoxyCompactList}\small\item\em Emergency stop button pin. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a5aa8880a15c3f2d5388c536a5c9b324b}\label{helpers_8h_a5aa8880a15c3f2d5388c536a5c9b324b} 
+volatile \doxymbox{\hyperlink{helpers_8h_aa51313be2faacb739a18fdeecefbac75}{System\+State}} {\bfseries system\+State} = SCANNING
+\begin{DoxyCompactList}\small\item\em Current operating mode. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a79fbf89054892e275a4dbcf7d2e604ea}\label{helpers_8h_a79fbf89054892e275a4dbcf7d2e604ea} 
+volatile bool {\bfseries estop\+Active} = false
+\begin{DoxyCompactList}\small\item\em Set by estop\+ISR on button press. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a62c12690e4e213ed9e71f71ca7aa866f}\label{helpers_8h_a62c12690e4e213ed9e71f71ca7aa866f} 
+volatile unsigned long {\bfseries last\+Debounce\+Time} = 0
+\begin{DoxyCompactList}\small\item\em Tracks last valid button event. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a53086dfbc87bdcb2c5c3be3607511e32}\label{helpers_8h_a53086dfbc87bdcb2c5c3be3607511e32} 
+volatile bool {\bfseries buzz\+Enabled} = false
+\begin{DoxyCompactList}\small\item\em Enables buzzer timer toggling. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a3782287bacb42179818f5fa4fc6ac8ff}\label{helpers_8h_a3782287bacb42179818f5fa4fc6ac8ff} 
+volatile uint32\+\_\+t {\bfseries buzz\+Tick\+Count} = 0
+\begin{DoxyCompactList}\small\item\em Counts buzzer ISR firings. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_ae409c13cd00da324a7341394a4454760}\label{helpers_8h_ae409c13cd00da324a7341394a4454760} 
+volatile float {\bfseries stepper\+Angle} = 0.\+0
+\begin{DoxyCompactList}\small\item\em Current stepper angle in degrees. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_aa80ea219ca646774758b39bc079884cc}\label{helpers_8h_aa80ea219ca646774758b39bc079884cc} 
+volatile int {\bfseries servo\+Angle\+Deg} = \doxymbox{\hyperlink{helpers_8h_ad5b3f2edf09eacbc860e7c2200ba7937}{SERVO\+\_\+\+START\+\_\+\+DEG}}
+\begin{DoxyCompactList}\small\item\em Current servo tilt in degrees. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a931146d807fe869ee01dac66ed707c10}\label{helpers_8h_a931146d807fe869ee01dac66ed707c10} 
+hw\+\_\+timer\+\_\+t \texorpdfstring{$\ast$}{*} {\bfseries buzz\+Timer} = NULL
+\begin{DoxyCompactList}\small\item\em Timer 0 handle for buzzer toggle ISR. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_ad45f8f46b41b067753af004c4334bf4b}\label{helpers_8h_ad45f8f46b41b067753af004c4334bf4b} 
+Queue\+Handle\+\_\+t {\bfseries servo\+Queue} = NULL
+\begin{DoxyCompactList}\small\item\em Servo angle commands (scan\+Task -\/\texorpdfstring{$>$}{>} servo\+Write\+Task). \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a75c4d7a5d77e3c4f37a21fba3f04cbdc}\label{helpers_8h_a75c4d7a5d77e3c4f37a21fba3f04cbdc} 
+Queue\+Handle\+\_\+t {\bfseries dist\+Queue} = NULL
+\begin{DoxyCompactList}\small\item\em Latest distance reading (sensor\+Task -\/\texorpdfstring{$>$}{>} lcd\+Task). \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_a95ca711c8457e966fa52b8c740911e67}\label{helpers_8h_a95ca711c8457e966fa52b8c740911e67} 
+Semaphore\+Handle\+\_\+t {\bfseries state\+Mutex} = NULL
+\begin{DoxyCompactList}\small\item\em Protects system\+State, stepper\+Angle, servo\+Angle\+Deg. \end{DoxyCompactList}\item 
+\Hypertarget{helpers_8h_aecf370c8f3e57a71cc82069828b73b71}\label{helpers_8h_aecf370c8f3e57a71cc82069828b73b71} 
+Servo {\bfseries my\+Servo}
+\begin{DoxyCompactList}\small\item\em Servo motor object. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Hardware helper functions, ISRs, pin definitions, configuration macros, and shared state declarations for the 2-\/axis ultrasonic sentry system. 
+
+\begin{DoxyAuthor}{Authors}
+Dhruv Naik, Ethan Le 
+\end{DoxyAuthor}
+\begin{DoxyDate}{Date}
+03/\+08/\+2026
+\end{DoxyDate}
+This header is included by \doxylink{main_8ino}{main.\+ino}. It defines all hardware pin assignments, tuning constants, the system state enum, all globally shared volatile variables, Free\+RTOS primitive handles, hardware object declarations, and all non-\/\+Free\+RTOS helper function implementations. Free\+RTOS task implementations live in \doxylink{main_8ino}{main.\+ino}. 
+
+\label{doc-enum-members}
+\Hypertarget{helpers_8h_doc-enum-members}
+\doxysubsection{Enumeration Type Documentation}
+\Hypertarget{helpers_8h_aa51313be2faacb739a18fdeecefbac75}\index{helpers.h@{helpers.h}!SystemState@{SystemState}}
+\index{SystemState@{SystemState}!helpers.h@{helpers.h}}
+\doxysubsubsection{\texorpdfstring{SystemState}{SystemState}}
+{\footnotesize\ttfamily \label{helpers_8h_aa51313be2faacb739a18fdeecefbac75} 
+enum \doxymbox{\hyperlink{helpers_8h_aa51313be2faacb739a18fdeecefbac75}{System\+State}}}
+
+
+
+Represents the three operating modes of the sentry system. 
+
+SCANNING:\+ motors actively sweeping the dome. LOCKED:\+ target detected within TARGET\+\_\+\+DIST\+\_\+\+CM, motors frozen. ESTOP:\+ emergency stop pressed, servo homed, stepper released. 
+
+\label{doc-func-members}
+\Hypertarget{helpers_8h_doc-func-members}
+\doxysubsection{Function Documentation}
+\Hypertarget{helpers_8h_a63fbe5477d26e00893cbd045a9da6fb3}\index{helpers.h@{helpers.h}!buzzTimerISR@{buzzTimerISR}}
+\index{buzzTimerISR@{buzzTimerISR}!helpers.h@{helpers.h}}
+\doxysubsubsection{\texorpdfstring{buzzTimerISR()}{buzzTimerISR()}}
+{\footnotesize\ttfamily \label{helpers_8h_a63fbe5477d26e00893cbd045a9da6fb3} 
+void IRAM\+\_\+\+ATTR buzz\+Timer\+ISR (\begin{DoxyParamCaption}{}{}\end{DoxyParamCaption})}
+
+
+
+Hardware timer ISR that drives the buzzer on/\+off pattern. 
+
+Fires every 500ms via Timer 0. Toggles the buzzer PWM output while buzz\+Enabled is true. Automatically silences after BUZZ\+\_\+\+DURATION\+\_\+\+TICKS firings (2 seconds) by clearing buzz\+Enabled. Runs from IRAM for deterministic low-\/latency execution. \Hypertarget{helpers_8h_a2ea5ddb6d909f76d53acf18a00d21982}\index{helpers.h@{helpers.h}!estopISR@{estopISR}}
+\index{estopISR@{estopISR}!helpers.h@{helpers.h}}
+\doxysubsubsection{\texorpdfstring{estopISR()}{estopISR()}}
+{\footnotesize\ttfamily \label{helpers_8h_a2ea5ddb6d909f76d53acf18a00d21982} 
+void IRAM\+\_\+\+ATTR estop\+ISR (\begin{DoxyParamCaption}{}{}\end{DoxyParamCaption})}
+
+
+
+GPIO interrupt handler for the emergency stop button. 
+
+Fires on both RISING and FALLING edges (CHANGE mode) to catch both press and release events. Time-\/based debouncing discards events within DEBOUNCE\+\_\+\+MS of the last valid event. Only sets or clears the estop\+Active flag — no heavy work performed in ISR. \Hypertarget{helpers_8h_a5c185fa137f4802d9574ff866f1d90bd}\index{helpers.h@{helpers.h}!getDistance@{getDistance}}
+\index{getDistance@{getDistance}!helpers.h@{helpers.h}}
+\doxysubsubsection{\texorpdfstring{getDistance()}{getDistance()}}
+{\footnotesize\ttfamily \label{helpers_8h_a5c185fa137f4802d9574ff866f1d90bd} 
+float get\+Distance (\begin{DoxyParamCaption}{}{}\end{DoxyParamCaption})}
+
+
+
+Take a single ultrasonic distance reading. 
+
+Sends a 10us trigger pulse on trig\+Pin and measures the echo duration on echo\+Pin. Uses a 30ms timeout to avoid blocking indefinitely if no echo is received. \begin{DoxyReturn}{Returns}
+Distance in centimeters, or -\/1.\+0 on timeout/\+no echo. 
+\end{DoxyReturn}
+\Hypertarget{helpers_8h_aa9293ac32d86cea57e148ea4b265954c}\index{helpers.h@{helpers.h}!getStableDistance@{getStableDistance}}
+\index{getStableDistance@{getStableDistance}!helpers.h@{helpers.h}}
+\doxysubsubsection{\texorpdfstring{getStableDistance()}{getStableDistance()}}
+{\footnotesize\ttfamily \label{helpers_8h_aa9293ac32d86cea57e148ea4b265954c} 
+float get\+Stable\+Distance (\begin{DoxyParamCaption}{}{}\end{DoxyParamCaption})}
+
+
+
+Take an averaged ultrasonic distance reading for stability. 
+
+Calls \doxylink{helpers_8h_a5c185fa137f4802d9574ff866f1d90bd}{get\+Distance()} three times with 10ms gaps between readings and returns the mean of all valid (positive) results. Reduces the effect of spurious sensor noise on target detection. \begin{DoxyReturn}{Returns}
+Averaged distance in centimeters, or -\/1.\+0 if all readings failed. 
+\end{DoxyReturn}
+\Hypertarget{helpers_8h_a04fb8c41269fb4c8cc7d72acf1a29f84}\index{helpers.h@{helpers.h}!releaseStepper@{releaseStepper}}
+\index{releaseStepper@{releaseStepper}!helpers.h@{helpers.h}}
+\doxysubsubsection{\texorpdfstring{releaseStepper()}{releaseStepper()}}
+{\footnotesize\ttfamily \label{helpers_8h_a04fb8c41269fb4c8cc7d72acf1a29f84} 
+void release\+Stepper (\begin{DoxyParamCaption}{}{}\end{DoxyParamCaption})}
+
+
+
+Release all stepper motor coils to prevent heat buildup. 
+
+Sets IN1 through IN4 LOW. Should be called after any stepper movement completes or when the motor needs to be idle. \Hypertarget{helpers_8h_a806221e1d0bf0419863af5c08ca5b943}\index{helpers.h@{helpers.h}!servoWrite@{servoWrite}}
+\index{servoWrite@{servoWrite}!helpers.h@{helpers.h}}
+\doxysubsubsection{\texorpdfstring{servoWrite()}{servoWrite()}}
+{\footnotesize\ttfamily \label{helpers_8h_a806221e1d0bf0419863af5c08ca5b943} 
+void servo\+Write (\begin{DoxyParamCaption}\item[{int}]{logical\+Deg}{}\end{DoxyParamCaption})}
+
+
+
+Write a logical servo angle, applying the physical offset. 
+
+Posts the physical angle to servo\+Queue. The servo\+Write\+Task on Core 0 executes the actual my\+Servo.\+write() call to avoid ESP32\+Servo cross-\/core threading issues. 
+\begin{DoxyParams}{Parameters}
+{\em logical\+Deg} & Desired angle in logical degrees (0 = horizontal, 70 = max up). \\
+\hline
+\end{DoxyParams}
+\Hypertarget{helpers_8h_a8511301b4a3f7fd65a1024ba62525b70}\index{helpers.h@{helpers.h}!stepDegrees@{stepDegrees}}
+\index{stepDegrees@{stepDegrees}!helpers.h@{helpers.h}}
+\doxysubsubsection{\texorpdfstring{stepDegrees()}{stepDegrees()}}
+{\footnotesize\ttfamily \label{helpers_8h_a8511301b4a3f7fd65a1024ba62525b70} 
+bool step\+Degrees (\begin{DoxyParamCaption}\item[{float}]{degrees}{}\end{DoxyParamCaption})}
+
+
+
+Move the stepper motor by a given number of degrees. 
+
+Steps one increment at a time, checking hard angle limits and system state on every step. Aborts early and releases coils if LOCKED or ESTOP is detected mid-\/move, or if STEPPER\+\_\+\+MAX\+\_\+\+DEG would be exceeded in either direction. 
+\begin{DoxyParams}{Parameters}
+{\em degrees} & Degrees to move. Positive = clockwise, negative = counter-\/clockwise. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+true if the full move completed, false if aborted early. 
+\end{DoxyReturn}
+\Hypertarget{helpers_8h_a68e3fbe6b2e37a4c33b0f066f0b43b47}\index{helpers.h@{helpers.h}!stepperToCenter@{stepperToCenter}}
+\index{stepperToCenter@{stepperToCenter}!helpers.h@{helpers.h}}
+\doxysubsubsection{\texorpdfstring{stepperToCenter()}{stepperToCenter()}}
+{\footnotesize\ttfamily \label{helpers_8h_a68e3fbe6b2e37a4c33b0f066f0b43b47} 
+void stepper\+To\+Center (\begin{DoxyParamCaption}{}{}\end{DoxyParamCaption})}
+
+
+
+Drive the stepper motor back to 0 degrees (center position). 
+
+Reads the current stepper\+Angle and calls \doxylink{helpers_8h_a8511301b4a3f7fd65a1024ba62525b70}{step\+Degrees()} with its inverse to return to center. Resets stepper\+Angle to 0.\+0 and releases coils on completion. 
